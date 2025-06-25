@@ -140,4 +140,4 @@ PRs and suggestions are welcome!
 
 ## Licence
 
-MIT 
+LICENSE
