@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuantTerm - Post-Quantum Terminal Chat</title>
+    <meta name="description" content="Secure two-peer messaging with Kyber & Dilithium, auto-discovery and zero servers. The future of quantum-safe communication.">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #0d1117;
+            --bg-light: #161b22;
+            --border-color: #30363d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent-glow: 0 0 20px rgba(9, 172, 237, 0.5), 0 0 30px rgba(9, 172, 237, 0.3);
+            --accent-gradient: linear-gradient(135deg, #09aced 0%, #2b75e8 100%);
+            --primary-blue: #58a6ff;
+            --green: #3fb950;
+            --red: #f85149;
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background-color: var(--bg-dark);
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Header */
+        header {
+            background: rgba(13, 17, 23, 0.7);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        header.scrolled {
+            background: rgba(13, 17, 23, 0.9);
+            border-bottom: 1px solid #484f58;
+        }
+        
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 0;
+        }
+
+        .logo {
+            font-size: 1.6rem;
+            font-weight: 800;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .logo::before {
+            content: '🛡️';
+            font-size: 1.8rem;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2.5rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .nav-links a::before {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 2px;
+            background: var(--accent-gradient);
+            transition: width 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+        
+        .nav-links a:hover::before {
+            width: 100%;
+        }
+
+        /* Hero Section */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            text-align: center;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+        }
+        
+        .sticky-header-container {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background-color: var(--bg-dark);
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image:
+                radial-gradient(circle at 15% 20%, rgba(9, 172, 237, 0.2), transparent 30%),
+                radial-gradient(circle at 85% 80%, rgba(43, 117, 232, 0.2), transparent 30%);
+            animation: pulse-glow 15s ease-in-out infinite;
+            z-index: 0;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+        }
+
+        .hero h1 {
+            font-size: clamp(3.5rem, 8vw, 6rem);
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, #ffffff 0%, #c9d1d9 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .hero-subtitle {
+            font-size: clamp(1.2rem, 3vw, 1.6rem);
+            font-weight: 400;
+            margin-bottom: 2rem;
+            color: var(--text-secondary);
+            max-width: 750px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-badges {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 3rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            background: rgba(48, 54, 61, 0.5);
+            padding: 0.75rem 1.5rem;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+        
+        .badge:hover {
+            transform: translateY(-2px);
+            border-color: var(--primary-blue);
+        }
+        
+        .badge-warning {
+            color: #ffa657;
+            border-color: #ffb4713d;
+        }
+        
+        .hero-description {
+            max-width: 700px;
+            margin: 0 auto 3rem;
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 1rem 2.5rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            border: none;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-primary {
+            background: var(--accent-gradient);
+            color: white;
+            box-shadow: var(--accent-glow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 0 25px rgba(9, 172, 237, 0.8), 0 0 40px rgba(9, 172, 237, 0.5);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-primary);
+            border: 2px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-3px);
+            background: var(--bg-light);
+            border-color: var(--primary-blue);
+            color: var(--primary-blue);
+        }
+        
+        /* Main Content Sections */
+        main {
+            background: var(--bg-dark);
+        }
+
+        .section {
+            padding: 120px 0;
+            position: relative;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        main section:last-of-type {
+            border-bottom: none;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: clamp(2.5rem, 5vw, 3.5rem);
+            font-weight: 800;
+            margin-bottom: 5rem;
+            color: var(--text-primary);
+            position: relative;
+        }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background: var(--accent-gradient);
+            border-radius: 2px;
+            box-shadow: var(--accent-glow);
+        }
+        
+        /* Features Grid */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-top: 4rem;
+        }
+
+        .feature-card {
+            background: var(--bg-light);
+            padding: 2.5rem 2rem;
+            border-radius: 24px;
+            border: 1px solid var(--border-color);
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(88, 166, 255, 0.1), transparent 40%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 30px rgba(88, 166, 255, 0.15);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            display: block;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+            font-size: 1rem;
+        }
+        
+        /* Tech Stack */
+        #technical {
+            background: var(--bg-light);
+        }
+        
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .tech-item {
+            background: var(--bg-dark);
+            padding: 2rem;
+            border-radius: 20px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .tech-item:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary-blue);
+        }
+
+        .tech-item h4 {
+            color: var(--primary-blue);
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .tech-item p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Installation Section */
+        #installation {
+            background: #03060a;
+        }
+
+        .code-block {
+            background: #010409;
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-md);
+        }
+
+        .code-block pre {
+            margin: 0;
+            color: #e6edf3;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .step {
+            margin: 3rem 0;
+            padding: 2rem;
+            background: var(--bg-light);
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .step h3 {
+            color: var(--primary-blue);
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        /* Security Notice */
+        .security-notice {
+            background: linear-gradient(135deg, rgba(248, 81, 73, 0.1), rgba(248, 81, 73, 0.2));
+            color: var(--text-primary);
+            text-align: center;
+            padding: 2.5rem;
+            border-radius: 20px;
+            margin: 4rem auto;
+            border: 1px solid var(--red);
+            box-shadow: 0 0 20px rgba(248, 81, 73, 0.2);
+            max-width: 800px;
+        }
+        
+        .security-notice h3 {
+            color: var(--red);
+            margin-bottom: 1rem;
+        }
+
+        /* Architecture */
+        .architecture-visual {
+            background: var(--bg-light);
+            padding: 3rem;
+            border-radius: 24px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+        
+        .architecture-visual p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            color: var(--text-secondary);
+        }
+        
+        .architecture-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .architecture-step {
+            background: var(--bg-dark);
+            padding: 2rem 1.5rem;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+        
+        .architecture-step:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary-blue);
+        }
+
+        .architecture-step h4 {
+            color: var(--primary-blue);
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .architecture-step p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        /* Roadmap */
+        #roadmap {
+            background: var(--bg-light);
+        }
+        
+        .roadmap-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .roadmap-item {
+            display: flex;
+            align-items: center;
+            background: var(--bg-dark);
+            padding: 1.5rem;
+            border-radius: 16px;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .roadmap-item:hover {
+            transform: translateX(8px);
+            border-color: var(--primary-blue);
+        }
+
+        .roadmap-item span:first-child {
+            margin-right: 1.5rem;
+            font-size: 1.5rem;
+        }
+
+        .roadmap-item span:last-child {
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        
+        .roadmap-item span:last-child strong {
+            color: var(--text-primary);
+        }
+        
+        /* Footer */
+        footer {
+            background: var(--bg-light);
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 4rem 0 2rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary-blue);
+            transform: translateY(-2px);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.8rem; }
+            .hero-subtitle { font-size: 1.2rem; }
+            .nav-links { display: none; }
+            .cta-buttons { flex-direction: column; align-items: center; }
+            .section-title { font-size: 2.2rem; }
+            .features-grid { grid-template-columns: 1fr; }
+        }
+        
+        /* Scroll Animations */
+        [data-animate] {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+        
+        [data-animate].in-view {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .hero-content > * {
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 0.8s ease-out forwards;
+        }
+        
+        .hero-content h1 { animation-delay: 0.1s; }
+        .hero-content .hero-subtitle { animation-delay: 0.2s; }
+        .hero-content .hero-badges { animation-delay: 0.3s; }
+        .hero-content .hero-description { animation-delay: 0.4s; }
+        .hero-content .cta-buttons { animation-delay: 0.5s; }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .popup-close:hover {
+            color: var(--text-primary);
+        }
+
+        /* Warning Banner - REMOVED */
+
+        /* Main Content Sections */
+        main {
+            background: var(--bg-dark);
+        }
+
+        .warning-popup {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 2000;
+            max-width: 400px;
+            background-color: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--red);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transform: translateY(0);
+            opacity: 1;
+            transition: transform 0.4s ease, opacity 0.4s ease;
+        }
+
+        .warning-popup.hidden {
+            transform: translateY(50px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .warning-popup span {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .warning-popup span strong {
+            color: var(--text-primary);
+        }
+
+        .popup-close {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.8rem;
+            font-weight: 600;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0 0.5rem;
+            margin-right: -1rem;
+            transition: color 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="sticky-header-container">
+        <!-- Enhanced Header -->
+        <header id="header">
+            <nav class="container">
+                <a href="#" class="logo">QuantTerm</a>
+                <ul class="nav-links">
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#installation">Install</a></li>
+                    <li><a href="#technical">Technical</a></li>
+                    <li><a href="https://github.com/reschjonas/quantterm" target="_blank">GitHub</a></li>
+                </ul>
+            </nav>
+        </header>
+    </div>
+
+    <!-- Enhanced Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1>QuantTerm</h1>
+                <p class="hero-subtitle">Post-Quantum End-to-End Encrypted Terminal Chat</p>
+                <div class="hero-badges">
+                    <span class="badge badge-warning">⚠️ Prototype</span>
+                    <span class="badge">🔐 Kyber-1024</span>
+                    <span class="badge">✍️ Dilithium-5</span>
+                    <span class="badge">🔄 Perfect Forward Secrecy</span>
+                    <span class="badge">🌐 P2P Discovery</span>
+                    <span class="badge">⚡ Go & UDP</span>
+                </div>
+                <p class="hero-description">
+                    ⚠️ <strong>Prototype Warning:</strong> QuantTerm is an experimental project and has not undergone a formal security audit. Use it strictly for learning and experimentation – <em>do not</em> rely on it to protect sensitive or production data.<br><br>
+                    Secure two-peer messaging with quantum-resistant cryptography, auto-discovery, and zero servers. 
+                    The future of private communication, built for the post-quantum era.
+                </p>
+                <div class="cta-buttons">
+                    <a href="#installation" class="btn btn-primary">
+                        Get Started
+                        <span>→</span>
+                    </a>
+                    <a href="https://github.com/reschjonas/quantterm" class="btn btn-secondary" target="_blank">
+                        View on GitHub
+                        <span>↗</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Enhanced Features Section -->
+        <section id="features" class="section">
+            <div class="container">
+                <h2 class="section-title">Why QuantTerm?</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <span class="feature-icon">🛡️</span>
+                        <h3>Post-Quantum Security</h3>
+                        <p>Built with NIST-standard Kyber-1024 key encapsulation and Dilithium-5 digital signatures. Your communications stay secure even against quantum computers.</p>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-icon">🔄</span>
+                        <h3>Perfect Forward Secrecy</h3>
+                        <p>Automatic key rotation every 15 minutes ensures that compromising future keys cannot decrypt past conversations.</p>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-icon">🌐</span>
+                        <h3>Smart Discovery</h3>
+                        <p>Automatically finds peers via mDNS on LAN, UDP broadcast, and global discovery with STUN. No manual IP configuration needed.</p>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-icon">⚡</span>
+                        <h3>Lightweight & Fast</h3>
+                        <p>Single Go binary (~10MB), <1k LOC core, direct UDP transport. Perfect for tunneling through WireGuard or running on constrained systems.</p>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-icon">🖥️</span>
+                        <h3>Terminal UI</h3>
+                        <p>Clean terminal interface showing chat, peer status, and security fingerprints. Works everywhere Go runs - Linux, macOS, Windows.</p>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-icon">🔒</span>
+                        <h3>Zero Servers</h3>
+                        <p>True peer-to-peer architecture. No central servers to compromise, monitor, or shut down. Your data never touches third-party infrastructure.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Enhanced Technical Stack -->
+        <section id="technical" class="section tech-stack">
+            <div class="container">
+                <h2 class="section-title">Technical Foundation</h2>
+                <div class="tech-grid">
+                    <div class="tech-item">
+                        <h4>Key Encapsulation</h4>
+                        <p><strong>CRYSTALS-Kyber-1024</strong><br>~8000 bit public key</p>
+                    </div>
+                    <div class="tech-item">
+                        <h4>Digital Signatures</h4>
+                        <p><strong>CRYSTALS-Dilithium-5</strong><br>~3500 bit public key</p>
+                    </div>
+                    <div class="tech-item">
+                        <h4>Symmetric Encryption</h4>
+                        <p><strong>XChaCha20-Poly1305</strong><br>256-bit authenticated encryption</p>
+                    </div>
+                    <div class="tech-item">
+                        <h4>Transport</h4>
+                        <p><strong>Raw UDP</strong><br>JSON wrapper, WireGuard-ready</p>
+                    </div>
+                    <div class="tech-item">
+                        <h4>Discovery</h4>
+                        <p><strong>mDNS + STUN</strong><br>LAN & Internet auto-discovery</p>
+                    </div>
+                    <div class="tech-item">
+                        <h4>Language</h4>
+                        <p><strong>Go 1.24+</strong><br>Cross-platform, static binary</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Enhanced Installation Section -->
+        <section id="installation" class="section installation">
+            <div class="container">
+                <h2 class="section-title" style="color: white;">Quick Installation</h2>
+                
+                <div class="step">
+                    <h3>1. Prerequisites</h3>
+                    <p>Ensure you have Go 1.24+ installed and UDP network access.</p>
+                    <div class="code-block">
+                        <pre># Check Go version
+go version
+
+# Should show Go 1.24 or higher</pre>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <h3>2. Build from Source</h3>
+                    <div class="code-block">
+                        <pre># Clone the repository
+git clone https://github.com/reschjonas/quantterm.git
+cd quantterm
+
+# Build static binary
+go build -trimpath -ldflags="-s -w" -o quantterm .
+
+# Verify installation
+./quantterm --version</pre>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <h3>3. Quick Start</h3>
+                    <div class="code-block">
+                        <pre># Terminal 1 - Create a room (listener)
+./quantterm create
+
+# Terminal 2 - Join via auto-discovery
+./quantterm join &lt;RoomID&gt;
+
+# Or join with manual IP:port
+./quantterm join &lt;RoomID&gt; &lt;ip:port&gt;</pre>
+                    </div>
+                </div>
+
+                <div class="security-notice">
+                    <h3>🔐 Security Reminder</h3>
+                    <p>Always verify identity fingerprints through a trusted side channel (phone, video call, etc.) before trusting messages. QuantTerm displays fingerprints every 60 seconds for easy verification.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Enhanced Architecture Overview -->
+        <section class="section architecture">
+            <div class="container">
+                <h2 class="section-title">How It Works</h2>
+                <div class="architecture-visual">
+                    <p>
+                        QuantTerm uses a carefully designed handshake and message flow to ensure quantum-safe, authenticated communication:
+                    </p>
+                    <div class="architecture-steps">
+                        <div class="architecture-step">
+                            <h4>1. Discovery</h4>
+                            <p>mDNS, broadcast, or global lookup finds peer addresses</p>
+                        </div>
+                        <div class="architecture-step">
+                            <h4>2. Handshake</h4>
+                            <p>Kyber key exchange establishes shared secrets</p>
+                        </div>
+                        <div class="architecture-step">
+                            <h4>3. Authentication</h4>
+                            <p>Dilithium signatures verify peer identities</p>
+                        </div>
+                        <div class="architecture-step">
+                            <h4>4. Secure Chat</h4>
+                            <p>XChaCha20-Poly1305 encrypts all messages</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Enhanced Roadmap -->
+        <section class="section roadmap">
+            <div class="container">
+                <h2 class="section-title">Roadmap</h2>
+                <div class="roadmap-container">
+                    <div class="roadmap-item">
+                        <span>🏗️</span>
+                        <span><strong>GitHub Actions</strong> - Build & release pipeline</span>
+                    </div>
+                    <div class="roadmap-item">
+                        <span>🌐</span>
+                        <span><strong>NAT Traversal</strong> - ICE/QUIC for better connectivity</span>
+                    </div>
+                    <div class="roadmap-item">
+                        <span>👥</span>
+                        <span><strong>Group Chat</strong> - N-way secure messaging</span>
+                    </div>
+                    <div class="roadmap-item">
+                        <span>📁</span>
+                        <span><strong>File Transfer</strong> - Secure file sharing capabilities</span>
+                    </div>
+                    <div class="roadmap-item">
+                        <span>🖥️</span>
+                        <span><strong>Desktop GUI</strong> - Modern graphical interface</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Enhanced Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-links">
+                <a href="https://github.com/reschjonas/quantterm">GitHub Repository</a>
+                <a href="https://github.com/reschjonas/quantterm/blob/main/TECHNICAL_OVERVIEW.md">Technical Overview</a>
+                <a href="https://github.com/reschjonas/quantterm/issues">Report Issues</a>
+                <a href="https://github.com/reschjonas/quantterm/blob/main/LICENSE">MIT License</a>
+            </div>
+            <p>&copy; 2025 QuantTerm. Open source under MIT License.</p>
+            <p style="margin-top: 1rem; opacity: 0.7; font-size: 0.9rem;">
+                Built with ❤️ for a post-quantum world. Contributions welcome!
+            </p>
+        </div>
+    </footer>
+
+    <div class="warning-popup" id="warning-popup">
+        <span>⚠️ <strong>Prototype:</strong> For educational use only. Not for production secrets.</span>
+        <button class="popup-close" id="close-warning-popup">&times;</button>
+    </div>
+
+    <script>
+        // Enhanced smooth scrolling
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Header scroll effect
+        const header = document.getElementById('header');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+
+        // Interactive mouse-aware gradient for feature cards
+        document.querySelectorAll('.feature-card').forEach(card => {
+            card.addEventListener('mousemove', e => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+            });
+        });
+
+        // Intersection Observer for animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('in-view');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.feature-card, .tech-item, .step, .architecture-step, .roadmap-item, .section-title, .architecture-visual p').forEach(element => {
+                element.setAttribute('data-animate', '');
+                observer.observe(element);
+            });
+
+            const warningPopup = document.getElementById('warning-popup');
+            const closeButton = document.getElementById('close-warning-popup');
+
+            if (warningPopup && closeButton) {
+                closeButton.addEventListener('click', () => {
+                    warningPopup.classList.add('hidden');
+                });
+            }
+        });
+    </script>
+</body>
+</html> 
