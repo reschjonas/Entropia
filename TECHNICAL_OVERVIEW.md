@@ -27,11 +27,11 @@ flowchart TD
 
     subgraph APP[internal/app]
         direction TB
-        B1[Room management]\n(generate & validate IDs)
-        B2[PQCrypto]\n(post-quantum layer)
-        B3[Network]\n(UDP transport)
-        B4[Discovery]\n(mDNS / Broadcast / Global)
-        B5[Terminal UI]
+        B1["Room management<br/>(generate & validate IDs)"]
+        B2["PQCrypto<br/>(post-quantum layer)"]
+        B3["Network<br/>(UDP transport)"]
+        B4["Discovery<br/>(mDNS / Broadcast / Global)"]
+        B5["Terminal UI"]
     end
 
     A1 --> APP
