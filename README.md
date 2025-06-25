@@ -140,4 +140,4 @@ PRs and suggestions are welcome!
 
 ## Licence
 
-LICENSE
+[LICENSE](https://github.com/reschjonas/quantterm/blob/main/LICENSE)
