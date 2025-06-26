@@ -446,3 +446,45 @@ func (wn *WireguardNetwork) sendKeyExchange(peerID string) error {
 	// always pass the remote address for key exchange to ensure delivery
 	return wn.writeWrapper(wrapper, wn.remoteUDPAddr)
 }
+
+// ForceKeyRotation performs a forward-secrecy key rotation and re-initiates the
+// post-quantum handshake with every connected peer. It returns true if a
+// rotation occurred (i.e. the interval elapsed) and false if no rotation was
+// required.
+func (wn *WireguardNetwork) ForceKeyRotation() (bool, error) {
+	// Step 1: rotate our own cryptographic material
+	rotated, err := wn.pqCrypto.RotateKeys()
+	if err != nil || !rotated {
+		return rotated, err
+	}
+
+	// Step 2: re-key with every connected peer
+	wn.peersMutex.RLock()
+	peerIDs := append([]string(nil), wn.connectedIDs...)
+	wn.peersMutex.RUnlock()
+
+	var aggErr error
+
+	// allow new key exchanges for these peers
+	wn.keyExchangeMutex.Lock()
+	for _, pid := range peerIDs {
+		wn.keyExchangeSent[pid] = false
+	}
+	wn.keyExchangeMutex.Unlock()
+
+	for _, peerID := range peerIDs {
+		if err := wn.sendKeyExchange(peerID); err != nil {
+			// collect the first error – we still try others
+			if aggErr == nil {
+				aggErr = err
+			}
+		}
+	}
+
+	// Informational log – keep transport aware
+	if len(peerIDs) > 0 {
+		fmt.Printf("🔄 Keys rotated – re-established secrets with %d peer(s)\n", len(peerIDs))
+	}
+
+	return rotated, aggErr
+}

@@ -561,16 +561,18 @@ func (pq *PQCrypto) DecryptMessageFromPeer(encMsg *EncryptedMessage) (*MessagePa
 	return payload, nil
 }
 
-// RotateKeys rotates keys for forward secrecy
-func (pq *PQCrypto) RotateKeys() error {
+// RotateKeys rotates the cryptographic material for forward secrecy.
+// It returns a boolean that is true when a rotation was performed
+// and false if the rotation interval has not yet elapsed.
+func (pq *PQCrypto) RotateKeys() (bool, error) {
 	now := time.Now()
 	if now.Sub(pq.lastKeyRotation) < pq.keyRotationInterval {
-		return nil // too soon
+		return false, nil // rotation not due yet
 	}
 
 	// generate new ephemeral keys
 	if err := pq.generateEphemeralKeyPairs(); err != nil {
-		return ErrKeyRotationFailed
+		return false, ErrKeyRotationFailed
 	}
 
 	pq.peersMutex.Lock()
@@ -580,12 +582,12 @@ func (pq *PQCrypto) RotateKeys() error {
 	for _, peer := range pq.peers {
 		// move current to previous
 		peer.PreviousSharedSecret = peer.CurrentSharedSecret
-		// clear current (will be re-established)
+		// clear current (will be re-established through new key exchange)
 		peer.CurrentSharedSecret = nil
 	}
 
 	pq.lastKeyRotation = now
-	return nil
+	return true, nil
 }
 
 // GetVerifiedPeers returns verified peer IDs

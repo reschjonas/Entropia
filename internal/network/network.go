@@ -22,6 +22,11 @@ type Network interface {
 
 	// get the list of connected peer IDs
 	GetConnectedPeers() []string
+
+	// ForceKeyRotation triggers an immediate key rotation and re-establishes
+	// fresh shared secrets with all connected peers. It returns a boolean that
+	// indicates whether a rotation actually took place.
+	ForceKeyRotation() (bool, error)
 }
 
 // NewNetwork returns a Wireguard transport

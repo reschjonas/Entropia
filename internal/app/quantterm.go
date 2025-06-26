@@ -217,7 +217,9 @@ func (qt *QuantTerm) handlePeerEvents(ctx context.Context) {
 // handle security events and fingerprint displays
 func (qt *QuantTerm) handleSecurityEvents(ctx context.Context) {
 	fingerprintTicker := time.NewTicker(60 * time.Second)
+	keyRotationCheckTicker := time.NewTicker(1 * time.Minute) // check every minute
 	defer fingerprintTicker.Stop()
+	defer keyRotationCheckTicker.Stop()
 
 	var lastShownFingerprints map[string]string
 
@@ -235,6 +237,21 @@ func (qt *QuantTerm) handleSecurityEvents(ctx context.Context) {
 			if !equalStringMaps(lastShownFingerprints, currentFingerprints) && len(currentFingerprints) > 0 {
 				qt.terminalUI.ShowPeerFingerprints(currentFingerprints)
 				lastShownFingerprints = currentFingerprints
+			}
+
+		case <-keyRotationCheckTicker.C:
+			// attempt key rotation for forward secrecy
+			if qt.network == nil {
+				continue
+			}
+
+			rotated, err := qt.network.ForceKeyRotation()
+			if err != nil {
+				qt.terminalUI.AddSecurityMessage(fmt.Sprintf("❌ Key rotation error: %v", err))
+				continue
+			}
+			if rotated {
+				qt.terminalUI.ShowKeyRotationEvent()
 			}
 		}
 	}
