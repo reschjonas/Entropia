@@ -30,7 +30,7 @@ flowchart TD
         B1["Room management<br/>(generate & validate IDs)"]
         B2["PQCrypto<br/>(post-quantum layer)"]
         B3["Network<br/>(QUIC transport)"]
-        B4["Discovery<br/>(mDNS / Broadcast / Global)"]
+        B4["Discovery<br/>(mDNS / Broadcast / DHT)"]
         B5["Terminal UI"]
     end
 
@@ -96,7 +96,7 @@ Discovery tries **three** methods in parallel and returns the first success:
 | :--- | :--- | :--- |
 | **mDNS** | LAN | Service name `_quantterm_<hash>._udp` is advertised & browsed. |
 | **UDP Broadcast** | LAN | Peers broadcast a JSON blob to `192.168/10./172.31` broadcast addresses. |
-| **Global** | Internet | Listener publishes `ip:port` to [`kvdb.io`](https://kvdb.io).  Joiner polls the key. |
+| **DHT (BitTorrent Kademlia)** | Internet | Listener announces `ip:port` on the public BitTorrent DHT; the joiner performs a traversal to discover peers. |
 
 The listener also learns its own public IP with STUN (`stun.l.google.com:19302`).
 
@@ -151,7 +151,7 @@ go test ./...
 
 ## 9. Future Work
 
-* Replace KV store with a small DHT or introduce a rendezvous server.
+* Improve DHT bootstrap reliability (e.g., multiple well-known bootstrap nodes).
 * Add support for group chats (e.g., using a protocol like MLS).
 * Add optional persistence for chat history.
 * Formal security audit.
