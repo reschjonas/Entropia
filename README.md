@@ -138,4 +138,4 @@ PRs and suggestions are welcome!
 
 ## Licence
 
-MIT 
+[MIT](https://github.com/reschjonas/quantterm/blob/main/LICENSE)
