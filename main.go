@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	version = "1.0.0-e2e"
+	version = "1.0.1-e2e"
 
 	rootCmd = &cobra.Command{
 		Use:   "quantterm",
@@ -37,8 +37,10 @@ CONNECTION MODES:
 • Cryptographic peer identity verification
 
 🌐 NETWORK TRANSPORT:
-QuantTerm uses UDP with WireGuard-style encapsulation for reliability and
-performance. It can operate over any IP network including:
+QuantTerm uses QUIC to establish a reliable and secure transport channel.
+The application-layer post-quantum cryptography is layered on top of QUIC's
+TLS 1.3 encryption for defense-in-depth. QUIC can operate over any IP network
+including:
 • Local Area Networks (automatic discovery)
 • Internet connections (manual addressing)
 • VPN tunnels and overlay networks
@@ -152,15 +154,24 @@ func runCreate() error {
 		return fmt.Errorf("failed to create room: %w", err)
 	}
 
+	// start DHT node for discovery
+	dhtServer, err := discovery.StartDHTNode(cfg.Discovery.BTDHTPort)
+	if err != nil {
+		fmt.Printf("⚠️  Warning: Could not start DHT node: %v\n", err)
+		fmt.Printf("   Local network discovery will still work\n")
+	}
+
 	// start multiple discovery services for max discoverability
 	go discovery.Advertise(ctx, roomID, quantApp.GetListenPort())               // mDNS
 	go discovery.StartDiscoveryResponder(ctx, roomID, quantApp.GetListenPort()) // broadcast responder
+	if dhtServer != nil {
+		go discovery.AnnounceDHT(ctx, dhtServer, roomID, quantApp.GetListenPort()) // DHT
+	}
 
-	// get external IP and advertise globally
-	externalAddr, err := discovery.AdvertiseWithExternalIP(ctx, roomID, quantApp.GetListenPort())
+	// get external IP for user display
+	externalAddr, err := discovery.GetExternalIP()
 	if err != nil {
 		fmt.Printf("⚠️  Warning: Could not determine external IP: %v\n", err)
-		fmt.Printf("   Local network discovery will still work\n")
 	}
 
 	fmt.Printf("🔐 QuantTerm E2E Encrypted Room Created\n")
@@ -174,7 +185,7 @@ func runCreate() error {
 	}
 
 	fmt.Printf("🏠 Local Port: %d\n", quantApp.GetListenPort())
-	fmt.Printf("📡 Discovery Services: mDNS + Broadcast + Global\n")
+	fmt.Printf("📡 Discovery Services: mDNS, Broadcast, DHT\n")
 	fmt.Printf("💡 Peers can join with just the Room ID (automatic discovery)\n")
 	fmt.Printf("⚠️  Verify fingerprints through a trusted channel\n")
 	fmt.Printf("⚡ Starting secure chat interface...\n\n")
@@ -208,10 +219,17 @@ func runJoin(roomID, remoteAddr string) error {
 	// always use automatic discovery unless address is explicitly provided
 	if remoteAddr == "" {
 		fmt.Printf("🔍 Auto-discovering peer for room %s...\n", roomID[:8])
-		fmt.Printf("   - Trying: mDNS, Broadcast, Global discovery\n")
+		fmt.Printf("   - Trying: mDNS, Broadcast, DHT\n")
+
+		// start dht node for discovery
+		dhtServer, err := discovery.StartDHTNode(cfg.Discovery.BTDHTPort)
+		if err != nil {
+			// not fatal, other discovery methods can still work
+			fmt.Printf("⚠️  Warning: Could not start DHT node: %v\n", err)
+		}
 
 		// use fast automatic discovery
-		addr, err := discovery.AutoDiscovery(ctx, roomID)
+		addr, err := discovery.AutoDiscovery(ctx, roomID, dhtServer)
 		if err != nil {
 			return fmt.Errorf("automatic discovery failed: %w\n\n💡 TROUBLESHOOTING:\n   • Make sure the room creator is running\n   • Check firewall settings\n   • Try manual connection: quantterm join %s <ip:port>", err, roomID)
 		}

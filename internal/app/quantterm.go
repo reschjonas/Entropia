@@ -5,7 +5,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"math/big"
+	mathrand "math/rand"
+	"net"
 	"time"
 
 	"quantterm/internal/config"
@@ -296,17 +297,55 @@ func generatePeerID() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-// find an available port in the given range
+// findAvailablePort iterates through a shuffled range of ports and returns the first one that is available on both TCP and UDP.
 func findAvailablePort(minPort, maxPort int) (int, error) {
-	// just pick a random port for now
-	// TODO: actually check if it's available
-	portRange := maxPort - minPort + 1
-	randomOffset, err := rand.Int(rand.Reader, big.NewInt(int64(portRange)))
-	if err != nil {
-		return 0, err
+	ports := make([]int, 0, maxPort-minPort+1)
+	for i := minPort; i <= maxPort; i++ {
+		ports = append(ports, i)
 	}
 
-	return minPort + int(randomOffset.Int64()), nil
+	// shuffle ports to reduce collisions when running multiple instances
+	mathrand.Seed(time.Now().UnixNano())
+	mathrand.Shuffle(len(ports), func(i, j int) {
+		ports[i], ports[j] = ports[j], ports[i]
+	})
+
+	for _, port := range ports {
+		if isPortAvailable(port) {
+			return port, nil
+		}
+	}
+
+	return 0, fmt.Errorf("no available port found in range %d-%d", minPort, maxPort)
+}
+
+// isPortAvailable checks if a port is available on both TCP and UDP.
+func isPortAvailable(port int) bool {
+	addr := fmt.Sprintf(":%d", port)
+
+	// check UDP
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		return false
+	}
+	udpConn, err := net.ListenUDP("udp", udpAddr)
+	if err != nil {
+		return false
+	}
+	defer udpConn.Close()
+
+	// check TCP
+	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		return false
+	}
+	tcpListener, err := net.ListenTCP("tcp", tcpAddr)
+	if err != nil {
+		return false
+	}
+	defer tcpListener.Close()
+
+	return true
 }
 
 // GetPeerFingerprint returns our cryptographic fingerprint

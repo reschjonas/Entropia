@@ -29,7 +29,7 @@ flowchart TD
         direction TB
         B1["Room management<br/>(generate & validate IDs)"]
         B2["PQCrypto<br/>(post-quantum layer)"]
-        B3["Network<br/>(UDP transport)"]
+        B3["Network<br/>(QUIC transport)"]
         B4["Discovery<br/>(mDNS / Broadcast / Global)"]
         B5["Terminal UI"]
     end
@@ -79,15 +79,12 @@ Every chat message is:
 
 ## 3. Transport Layer (`internal/network`)
 
-* **UDP** is used directly; there is no reliability or congestion control built in.
-* The socket is usually bound to an interface inside a **WireGuard** tunnel – the
-  encryption inside WG shields our metadata and hides the large PQ keys from
-  middleboxes.
-* Messages are wrapped in a tiny JSON object (`wgMessage`) with the base-16
-  encoded payload plus a type field (`announcement`, `keyexchange`, `message`).
+The transport layer is built on **QUIC**, which provides a reliable, stream-based, and encrypted channel between the two peers.
 
-Why not QUIC/TCP?  Keeping the transport dumb helps keep the demo small and
-focuses on the cryptography.
+* **QUIC** handles reliability, congestion control, and transport-level encryption (TLS 1.3).
+* We use a self-signed certificate for the TLS handshake, as the application's primary trust is established through the post-quantum key exchange and identity fingerprints.
+* Application-level messages (announcements, key exchanges, chat) are serialized into a simple JSON object and sent over separate QUIC streams. This multiplexing prevents head-of-line blocking between different message types.
+* Using a standard protocol like QUIC makes the application more robust and simplifies the transport logic significantly compared to a raw UDP-based approach.
 
 ---
 
@@ -119,12 +116,12 @@ A single Go file implements a minimal TUI:
 ## 6. Lifecycle
 
 1. **Creator**
-   1. Generates a room ID & binds a UDP socket.
+   1. Generates a room ID & starts a QUIC listener on a UDP port.
    2. Advertises via discovery layer.
-   3. Waits for announcements; sends its own once a datagram is received.
+   3. Waits for an incoming QUIC connection; sends its own announcement once a peer connects.
 2. **Joiner**
    1. Resolves the creator's address via discovery (or manual CLI arg).
-   2. Dials the UDP address; immediately sends its announcement.
+   2. Dials the peer's QUIC address; immediately sends its announcement over a new stream.
    3. Performs key exchange once creator's announcement is verified.
 3. **Chatting** – Both sides encrypt/sign every message and verify/decrypt on receipt.
 4. **Rotation** – After 15 min, new Kyber ephemerals are generated and exchanged.
@@ -155,6 +152,7 @@ go test ./...
 ## 9. Future Work
 
 * Replace KV store with a small DHT or introduce a rendezvous server.
-* Improve NAT traversal (ICE, TURN).
-* Add optional QUIC transport for reliability.
-* Formal security audit. 
+* Add support for group chats (e.g., using a protocol like MLS).
+* Add optional persistence for chat history.
+* Formal security audit.
+* Create a graphical user interface (GUI). 

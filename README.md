@@ -21,7 +21,7 @@ Instead of trying to replace Signal or Matrix, the project focuses on demonstrat
 * quantum-safe key agreement (Kyber-1024),
 * message authentication (Dilithium-5),
 * periodic key rotation for forward secrecy, and
-* a super-lightweight UDP transport that usually lives inside a WireGuard tunnel.
+* a reliable, multiplexed transport over QUIC.
 
 Curious about the internals?  See **TECHNICAL_OVERVIEW.md**.
 
@@ -54,8 +54,8 @@ Curious about the internals?  See **TECHNICAL_OVERVIEW.md**.
 | 🛡 | **Post-quantum crypto** – Kyber-1024 KEM & Dilithium-5 signatures |
 | 🔄 | **Perfect forward secrecy** – automatic key rotation every 15 min |
 | 🔍 | **LAN discovery** – mDNS plus UDP broadcast |
-| 🌐 | **Internet discovery** – STUN for external IP + address published on `kvdb.io` |
-| 📡 | **Transport** – raw UDP with a small JSON wrapper (best inside WireGuard) |
+| 🌐 | **Internet discovery** – Peer discovery via the BitTorrent DHT network |
+| 📡 | **Transport** – Reliable and secure streams via QUIC |
 | 👀 | **TUI** – shows peer list, verification status & fingerprints |
 
 ---
@@ -65,8 +65,7 @@ Curious about the internals?  See **TECHNICAL_OVERVIEW.md**.
 ### Prerequisites
 
 - **Go 1.24+** – install from <https://go.dev/dl/> or your OS package manager.
-- **UDP reachable** network (firewalls/NAT that allow an arbitrary UDP port).
-- *(Optional)* **WireGuard** if you prefer to tunnel traffic: `sudo apt install wireguard-tools`.
+- **UDP reachable** network (firewalls/NAT that allow an arbitrary UDP port for QUIC).
 
 ### 1. Grab a pre-built binary *(coming soon)*
 
@@ -131,7 +130,6 @@ Every peer prints a fingerprint derived from its long-term public keys.  Compare
 * NAT traversal via ICE/QUIC
 * Simple group chats (N-peers)
 * File transfer & chat history persistence
-* Replace `kvdb.io` with a small DHT
 * Actual GUI
 
 PRs and suggestions are welcome!
@@ -140,4 +138,4 @@ PRs and suggestions are welcome!
 
 ## Licence
 
-[LICENSE](https://github.com/reschjonas/quantterm/blob/main/LICENSE)
+MIT 

@@ -1,155 +1,17 @@
 package discovery
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"time"
+
+	"github.com/anacrolix/dht/v2"
 )
-
-// HTTPDiscoveryService is a simple HTTP-based discovery service
-type HTTPDiscoveryService struct {
-	baseURL string
-	client  *http.Client
-}
-
-// RoomAdvertisement is room advertisement data
-type RoomAdvertisement struct {
-	RoomID    string    `json:"room_id"`
-	Address   string    `json:"address"`
-	Timestamp time.Time `json:"timestamp"`
-}
-
-// get the kvdb bucket URL for this room
-func roomBucketURL(roomID string) string {
-	// derive deterministic bucket ID from SHA-256
-	bucket := "qt-" + sha256Hex(roomID)[:16]
-
-	if prefix := strings.TrimSpace(os.Getenv("QUANTTERM_DISCOVERY_URL")); prefix != "" {
-		return fmt.Sprintf("%s/%s", strings.TrimSuffix(prefix, "/"), bucket)
-	}
-
-	return fmt.Sprintf("https://kvdb.io/%s", bucket)
-}
-
-// NewHTTPDiscoveryService creates a new HTTP discovery service
-func NewHTTPDiscoveryService(baseURL string) *HTTPDiscoveryService {
-	return &HTTPDiscoveryService{
-		baseURL: baseURL,
-		client: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-	}
-}
-
-// AdvertiseGlobal publishes our external address so peers can find us
-func AdvertiseGlobal(ctx context.Context, roomID, addr string) error {
-	adv := RoomAdvertisement{
-		RoomID:    roomID,
-		Address:   addr,
-		Timestamp: time.Now().UTC(),
-	}
-
-	data, _ := json.Marshal(adv)
-
-	baseURL := roomBucketURL(roomID)
-	key := sha256Hex(roomID)
-	url := fmt.Sprintf("%s/%s", baseURL, key)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewReader(data))
-	if err != nil {
-		return err
-	}
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("global advertise failed: %s", resp.Status)
-	}
-
-	fmt.Printf("📡 Global advertisement published (%s)\n", addr)
-	return nil
-}
-
-// LookupGlobal queries for the advertised address for a room
-func LookupGlobal(ctx context.Context, roomID string, timeout time.Duration) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	baseURL := roomBucketURL(roomID)
-	key := sha256Hex(roomID)
-	url := fmt.Sprintf("%s/%s", baseURL, key)
-
-	const maxAge = 5 * time.Minute // ignore stale adverts
-
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		// try once per tick
-		addr, ok, err := func() (string, bool, error) {
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-			if err != nil {
-				return "", false, err
-			}
-			client := &http.Client{Timeout: 10 * time.Second}
-			resp, err := client.Do(req)
-			if err != nil {
-				return "", false, err
-			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode == http.StatusNotFound {
-				return "", false, nil // not yet published
-			}
-			if resp.StatusCode != http.StatusOK {
-				return "", false, fmt.Errorf("unexpected status: %s", resp.Status)
-			}
-
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				return "", false, err
-			}
-
-			var adv RoomAdvertisement
-			if err := json.Unmarshal(body, &adv); err != nil {
-				return "", false, err
-			}
-
-			if time.Since(adv.Timestamp) > maxAge {
-				return "", false, nil // too old, ignore
-			}
-
-			return adv.Address, true, nil
-		}()
-
-		if err != nil {
-			return "", err
-		}
-		if ok {
-			return addr, nil
-		}
-
-		select {
-		case <-ctx.Done():
-			return "", fmt.Errorf("global discovery timeout after %s", timeout)
-		case <-ticker.C:
-		}
-	}
-}
 
 // GetExternalIP returns our external IP using STUN or HTTP services
 func GetExternalIP() (string, error) {
@@ -210,35 +72,6 @@ func getIPFromSTUN() (string, error) {
 	}
 
 	return parts[0], nil
-}
-
-// create a deterministic key for the room
-func dhtKey(roomID string) string {
-	h := sha256.Sum256([]byte(roomID))
-	return "/quantterm/" + hex.EncodeToString(h[:])
-}
-
-// helper that returns SHA-256 hash as lowercase hex
-func sha256Hex(s string) string {
-	h := sha256.Sum256([]byte(s))
-	return hex.EncodeToString(h[:])
-}
-
-// AdvertiseWithExternalIP advertises using detected external IP and port
-func AdvertiseWithExternalIP(ctx context.Context, roomID string, port int) (string, error) {
-	externalIP, err := GetExternalIP()
-	if err != nil {
-		return "", fmt.Errorf("failed to get external IP: %w", err)
-	}
-
-	addr := fmt.Sprintf("%s:%d", externalIP, port)
-
-	// advertise globally
-	if err := AdvertiseGlobal(ctx, roomID, addr); err != nil {
-		return "", fmt.Errorf("failed to advertise globally: %w", err)
-	}
-
-	return addr, nil
 }
 
 // IsLocalAddress checks if an IP is on the local network
@@ -306,7 +139,7 @@ func ValidateAddress(addr string) error {
 }
 
 // AutoDiscovery tries multiple discovery methods simultaneously
-func AutoDiscovery(ctx context.Context, roomID string) (string, error) {
+func AutoDiscovery(ctx context.Context, roomID string, dhtServer *dht.Server) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -325,11 +158,15 @@ func AutoDiscovery(ctx context.Context, roomID string) (string, error) {
 	}()
 
 	go func() {
-		// global discovery via external services
-		if addr, err := LookupGlobal(ctx, roomID, 15*time.Second); err == nil {
-			results <- addr
+		// global discovery via DHT
+		if dhtServer != nil {
+			if addr, err := LookupDHT(ctx, dhtServer, roomID, 15*time.Second); err == nil {
+				results <- addr
+			} else {
+				errors <- fmt.Errorf("dht: %w", err)
+			}
 		} else {
-			errors <- fmt.Errorf("global: %w", err)
+			errors <- fmt.Errorf("dht: server not initialized")
 		}
 	}()
 

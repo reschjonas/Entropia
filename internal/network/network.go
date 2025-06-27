@@ -29,8 +29,8 @@ type Network interface {
 	ForceKeyRotation() (bool, error)
 }
 
-// NewNetwork returns a Wireguard transport
+// NewNetwork returns a QUIC-based transport.
 // if isListener is true (room creator) it listens, otherwise dials remoteAddr
 func NewNetwork(ctx context.Context, peerID, roomID string, listenPort int, pqCrypto *crypto.PQCrypto, isListener bool, remoteAddr string) (Network, error) {
-	return NewWireguardNetwork(ctx, peerID, roomID, listenPort, pqCrypto, isListener, remoteAddr)
+	return NewQuicNetwork(ctx, peerID, roomID, listenPort, pqCrypto, isListener, remoteAddr)
 }
