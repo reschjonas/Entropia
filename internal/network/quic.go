@@ -17,6 +17,8 @@ import (
 	"quantterm/internal/crypto"
 	"quantterm/internal/logger"
 
+	"crypto/sha256"
+
 	"github.com/quic-go/quic-go"
 )
 
@@ -57,6 +59,9 @@ type QuicNetwork struct {
 	announcementSent bool
 	keyExchangeSent  map[string]bool
 	keyExchangeMutex sync.RWMutex
+
+	// certificate fingerprints
+	localCertFingerprint string
 }
 
 // NewQuicNetwork creates the transport but doesn't start goroutines until Start
@@ -161,6 +166,12 @@ func (qn *QuicNetwork) listenQUIC() error {
 		return fmt.Errorf("failed to generate TLS config: %w", err)
 	}
 
+	// compute fingerprint of our first certificate
+	if len(tlsConfig.Certificates) > 0 && len(tlsConfig.Certificates[0].Certificate) > 0 {
+		fp := sha256.Sum256(tlsConfig.Certificates[0].Certificate[0])
+		qn.localCertFingerprint = hex.EncodeToString(fp[:])
+	}
+
 	addr := fmt.Sprintf("0.0.0.0:%d", qn.listenPort)
 	listener, err := quic.ListenAddr(addr, tlsConfig, nil)
 	if err != nil {
@@ -202,12 +213,18 @@ func (qn *QuicNetwork) dialQUIC() error {
 		return fmt.Errorf("remote address required for joiner")
 	}
 
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true, // we use our own PQCrypto on top
-		NextProtos:         []string{"quantterm-chat"},
+	tlsCfg, err := generateTLSConfig()
+	if err != nil {
+		return err
+	}
+	tlsCfg.InsecureSkipVerify = true // still skip PKI validation
+
+	if len(tlsCfg.Certificates) > 0 && len(tlsCfg.Certificates[0].Certificate) > 0 {
+		fp := sha256.Sum256(tlsCfg.Certificates[0].Certificate[0])
+		qn.localCertFingerprint = hex.EncodeToString(fp[:])
 	}
 
-	conn, err := quic.DialAddr(qn.ctx, qn.remoteAddr, tlsConfig, nil)
+	conn, err := quic.DialAddr(qn.ctx, qn.remoteAddr, tlsCfg, nil)
 	if err != nil {
 		qn.sendError(err)
 		return fmt.Errorf("failed to dial %s: %w", qn.remoteAddr, err)
@@ -324,6 +341,18 @@ func (qn *QuicNetwork) handlePeerAnnouncement(w message) {
 			qn.keyExchangeMutex.Unlock()
 		}
 	}
+
+	// verify remote certificate hash matches announced fingerprint
+	tlsState := qn.conn.ConnectionState().TLS
+	if len(tlsState.PeerCertificates) > 0 {
+		hash := sha256.Sum256(tlsState.PeerCertificates[0].Raw)
+		remoteFp := hex.EncodeToString(hash[:])
+		if remoteFp != announcement.TLSCertFingerprint {
+			logger.L().Warn("TLS certificate fingerprint mismatch; possible MITM")
+			qn.sendError(fmt.Errorf("tls fingerprint mismatch"))
+			return
+		}
+	}
 }
 
 func (qn *QuicNetwork) handleKeyExchange(w message) {
@@ -366,7 +395,7 @@ func (qn *QuicNetwork) handleEncryptedChat(w message) {
 }
 
 func (qn *QuicNetwork) sendPeerAnnouncement() error {
-	announcement, err := qn.pqCrypto.CreatePeerAnnouncement(qn.localPeerID)
+	announcement, err := qn.pqCrypto.CreatePeerAnnouncement(qn.localPeerID, qn.localCertFingerprint)
 	if err != nil {
 		return err
 	}

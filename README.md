@@ -3,6 +3,7 @@
 <p align="center">
   <a href="https://go.dev/"><img src="https://img.shields.io/badge/Go-1.24%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License"></a>
+  <img src="https://img.shields.io/badge/Version-1.0.3--e2e-brightgreen?style=for-the-badge" alt="Version">
   <img src="https://img.shields.io/badge/Status-Prototype-orange?style=for-the-badge" alt="Project Status">
 </p>
 
@@ -53,7 +54,9 @@ Curious about the internals?  See **TECHNICAL_OVERVIEW.md**.
 |  |  |
 | :--- | :--- |
 | 🛡 | **Post-quantum crypto** – Kyber-1024 KEM & Dilithium-5 signatures |
-| 🔄 | **Perfect forward secrecy** – automatic key rotation every 15 min |
+| 🔄 | **Forward secrecy** – immediate FS via Kyber *ephemeral* keys + rotation every 15 min |
+| 🔑 | **Channel binding** – TLS certificate fingerprint is signed & verified to block MITM |
+| 🧂 | **Random-salt HKDF** – each message has a fresh 32-byte salt and authenticated header |
 | 🔍 | **LAN discovery** – mDNS plus UDP broadcast |
 | 🌐 | **Internet discovery** – Peer discovery via the BitTorrent DHT network |
 | 📡 | **Transport** – Reliable and secure streams via QUIC |

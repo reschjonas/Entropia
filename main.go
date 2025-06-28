@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	version = "1.0.2-e2e"
+	version = "1.0.3-e2e"
 
 	rootCmd = &cobra.Command{
 		Use:   "quantterm",

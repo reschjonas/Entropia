@@ -63,18 +63,22 @@ included in every peer-announcement and are **signed** with Dilithium.
 
 ### 2.2 Handshake flow
 
-1. **Peer Announcement** – Each side broadcasts its identity public keys signed with Dilithium.
-2. **Key Exchange** – The initiator encapsulates a Kyber shared secret to the other peer's *identity KEM* key.
-3. Both sides derive a 32-byte session key via HKDF and immediately switch to
-   **ChaCha20-Poly1305** for chat messages.
-4. Keys rotate every 15 minutes; the previous secret is kept around for a grace
-   period to decrypt late packets.
+1. **Peer Announcement**  
+   • Identity Kyber **&** Dilithium public keys  
+   • **SHA-256 fingerprint of the self-signed QUIC certificate**  
+   – All fields are signed with Dilithium.
+2. **Key Exchange** – The initiator encapsulates to the peer's **most recent Kyber *ephemeral*** key (falls back to identity key on first contact).  The responder decapsulates with *either* its identity **or** current ephemeral private key.
+3. Both sides feed the shared secret into HKDF **together with a fresh 32-byte salt** (carried in every ciphertext header) to derive a 32-byte session key for
+   **XChaCha20-Poly1305**.
+4. Keys rotate every 15 minutes; the previous secret is kept for a short grace period to decrypt late packets.
 
 Every chat message is:
 
 * serialized (`MessagePayload` JSON),
-* sealed with XChaCha20-Poly1305, and
-* signed with Dilithium.
+* a new **32-byte random salt** is generated,
+* header fields (`sender`, `recipient`, `timestamp`, `epoch`, `salt`) become **AEAD AAD** and are covered by the MAC,
+* payload is sealed with XChaCha20-Poly1305, and
+* the complete envelope is signed with Dilithium.
 
 ---
 
@@ -83,7 +87,7 @@ Every chat message is:
 The transport layer is built on **QUIC**, which provides a reliable, stream-based, and encrypted channel between the two peers.
 
 * **QUIC** handles reliability, congestion control, and transport-level encryption (TLS 1.3).
-* We use a self-signed certificate for the TLS handshake, as the application's primary trust is established through the post-quantum key exchange and identity fingerprints.
+* Each peer uses a self-signed certificate and **signs its SHA-256 fingerprint in the first announcement**. The remote fingerprint is checked right after the QUIC handshake to block early MITM.
 * Application-level messages (announcements, key exchanges, chat) are serialized into a simple JSON object and sent over separate QUIC streams. This multiplexing prevents head-of-line blocking between different message types.
 * Using a standard protocol like QUIC makes the application more robust and simplifies the transport logic significantly compared to a raw UDP-based approach.
 
