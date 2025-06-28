@@ -8,7 +8,7 @@ require (
 	github.com/anacrolix/dht/v2 v2.22.1
 	github.com/anacrolix/torrent v1.58.1
 	github.com/btcsuite/btcutil v1.0.2
-	github.com/cloudflare/circl v1.3.7
+	github.com/cloudflare/circl v1.6.1
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/pion/stun v0.6.1
 	github.com/quic-go/quic-go v0.45.1
