@@ -24,7 +24,7 @@ Instead of trying to replace Signal or Matrix, the project focuses on demonstrat
 * periodic key rotation for forward secrecy, and
 * a reliable, multiplexed transport over QUIC.
 
-Curious about the internals?  See **TECHNICAL_OVERVIEW.md**.
+Curious about the internals?  See **[TECHNICAL_OVERVIEW](https://github.com/reschjonas/entropia/blob/main/TECHNICAL_OVERVIEW.md)**.
 
 ---
 
