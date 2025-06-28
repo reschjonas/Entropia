@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QuantTerm - Post-Quantum Terminal Chat</title>
-    <meta name="description" content="Secure two-peer messaging with Kyber & Dilithium, auto-discovery and zero servers. The future of quantum-safe communication.">
+    <meta name="description" content="Secure peer-to-peer messaging with Kyber-1024, Dilithium-5 and QUIC transport. Auto-discovery (mDNS, DHT, STUN) and zero servers for quantum-safe communication.">
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -705,11 +705,11 @@
                     <span class="badge">✍️ Dilithium-5</span>
                     <span class="badge">🔄 Perfect Forward Secrecy</span>
                     <span class="badge">🌐 P2P Discovery</span>
-                    <span class="badge">⚡ Go & UDP</span>
+                    <span class="badge">⚡ Go & QUIC</span>
                 </div>
                 <p class="hero-description">
                     ⚠️ <strong>Prototype Warning:</strong> QuantTerm is an experimental project and has not undergone a formal security audit. Use it strictly for learning and experimentation – <em>do not</em> rely on it to protect sensitive or production data.<br><br>
-                    Secure two-peer messaging with quantum-resistant cryptography, auto-discovery, and zero servers. 
+                    Secure peer-to-peer messaging with quantum-resistant cryptography, auto-discovery, and zero servers. 
                     The future of private communication, built for the post-quantum era.
                 </p>
                 <div class="cta-buttons">
@@ -746,12 +746,12 @@
                     <div class="feature-card">
                         <span class="feature-icon">🌐</span>
                         <h3>Smart Discovery</h3>
-                        <p>Automatically finds peers via mDNS on LAN, UDP broadcast, and global discovery with STUN. No manual IP configuration needed.</p>
+                        <p>Automatically finds peers via mDNS, UDP broadcast, global DHT, and STUN – no manual IP configuration needed.</p>
                     </div>
                     <div class="feature-card">
                         <span class="feature-icon">⚡</span>
                         <h3>Lightweight & Fast</h3>
-                        <p>Single Go binary (~10MB), <1k LOC core, direct UDP transport. Perfect for tunneling through WireGuard or running on constrained systems.</p>
+                        <p>Single Go binary (~10MB), <1k LOC core, QUIC-over-UDP transport. Perfect for tunneling through WireGuard or running on constrained systems.</p>
                     </div>
                     <div class="feature-card">
                         <span class="feature-icon">🖥️</span>
@@ -786,11 +786,11 @@
                     </div>
                     <div class="tech-item">
                         <h4>Transport</h4>
-                        <p><strong>Raw UDP</strong><br>JSON wrapper, WireGuard-ready</p>
+                        <p><strong>QUIC (UDP)</strong><br>Multiplexed reliable transport over UDP</p>
                     </div>
                     <div class="tech-item">
                         <h4>Discovery</h4>
-                        <p><strong>mDNS + STUN</strong><br>LAN & Internet auto-discovery</p>
+                        <p><strong>mDNS + DHT + STUN</strong><br>LAN & Internet auto-discovery</p>
                     </div>
                     <div class="tech-item">
                         <h4>Language</h4>
