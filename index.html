@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QuantTerm - Post-Quantum Terminal Chat</title>
+    <title>Entropia - Post-Quantum Terminal Chat</title>
     <meta name="description" content="Secure peer-to-peer messaging with Kyber-1024, Dilithium-5 and QUIC transport. Auto-discovery (mDNS, DHT, STUN) and zero servers for quantum-safe communication.">
     
     <!-- Google Fonts -->
@@ -682,12 +682,12 @@
         <!-- Enhanced Header -->
         <header id="header">
             <nav class="container">
-                <a href="#" class="logo">QuantTerm</a>
+                <a href="#" class="logo">Entropia</a>
                 <ul class="nav-links">
                     <li><a href="#features">Features</a></li>
                     <li><a href="#installation">Install</a></li>
                     <li><a href="#technical">Technical</a></li>
-                    <li><a href="https://github.com/reschjonas/quantterm" target="_blank">GitHub</a></li>
+                    <li><a href="https://github.com/reschjonas/entropia" target="_blank">GitHub</a></li>
                 </ul>
             </nav>
         </header>
@@ -697,7 +697,7 @@
     <section class="hero">
         <div class="container">
             <div class="hero-content">
-                <h1>QuantTerm</h1>
+                <h1>Entropia</h1>
                 <p class="hero-subtitle">Post-Quantum End-to-End Encrypted Terminal Chat</p>
                 <div class="hero-badges">
                     <span class="badge badge-warning">⚠️ Prototype</span>
@@ -708,7 +708,7 @@
                     <span class="badge">⚡ Go & QUIC</span>
                 </div>
                 <p class="hero-description">
-                    ⚠️ <strong>Prototype Warning:</strong> QuantTerm is an experimental project and has not undergone a formal security audit. Use it strictly for learning and experimentation – <em>do not</em> rely on it to protect sensitive or production data.<br><br>
+                    ⚠️ <strong>Prototype Warning:</strong> Entropia is an experimental project and has not undergone a formal security audit. Use it strictly for learning and experimentation – <em>do not</em> rely on it to protect sensitive or production data.<br><br>
                     Secure peer-to-peer messaging with quantum-resistant cryptography, auto-discovery, and zero servers. 
                     The future of private communication, built for the post-quantum era.
                 </p>
@@ -717,7 +717,7 @@
                         Get Started
                         <span>→</span>
                     </a>
-                    <a href="https://github.com/reschjonas/quantterm" class="btn btn-secondary" target="_blank">
+                    <a href="https://github.com/reschjonas/entropia" class="btn btn-secondary" target="_blank">
                         View on GitHub
                         <span>↗</span>
                     </a>
@@ -731,7 +731,7 @@
         <!-- Enhanced Features Section -->
         <section id="features" class="section">
             <div class="container">
-                <h2 class="section-title">Why QuantTerm?</h2>
+                <h2 class="section-title">Why Entropia?</h2>
                 <div class="features-grid">
                     <div class="feature-card">
                         <span class="feature-icon">🛡️</span>
@@ -820,14 +820,14 @@ go version
                     <h3>2. Build from Source</h3>
                     <div class="code-block">
                         <pre># Clone the repository
-git clone https://github.com/reschjonas/quantterm.git
-cd quantterm
+git clone https://github.com/reschjonas/entropia.git
+cd entropia
 
 # Build static binary
-go build -trimpath -ldflags="-s -w" -o quantterm .
+go build -trimpath -ldflags="-s -w" -o entropia .
 
 # Verify installation
-./quantterm --version</pre>
+./entropia --version</pre>
                     </div>
                 </div>
 
@@ -835,19 +835,19 @@ go build -trimpath -ldflags="-s -w" -o quantterm .
                     <h3>3. Quick Start</h3>
                     <div class="code-block">
                         <pre># Terminal 1 - Create a room (listener)
-./quantterm create
+./entropia create
 
 # Terminal 2 - Join via auto-discovery
-./quantterm join &lt;RoomID&gt;
+./entropia join &lt;RoomID&gt;
 
 # Or join with manual IP:port
-./quantterm join &lt;RoomID&gt; &lt;ip:port&gt;</pre>
+./entropia join &lt;RoomID&gt; &lt;ip:port&gt;</pre>
                     </div>
                 </div>
 
                 <div class="security-notice">
                     <h3>🔐 Security Reminder</h3>
-                    <p>Always verify identity fingerprints through a trusted side channel (phone, video call, etc.) before trusting messages. QuantTerm displays fingerprints every 60 seconds for easy verification.</p>
+                    <p>Always verify identity fingerprints through a trusted side channel (phone, video call, etc.) before trusting messages. Entropia displays fingerprints every 60 seconds for easy verification.</p>
                 </div>
             </div>
         </section>
@@ -858,7 +858,7 @@ go build -trimpath -ldflags="-s -w" -o quantterm .
                 <h2 class="section-title">How It Works</h2>
                 <div class="architecture-visual">
                     <p>
-                        QuantTerm uses a carefully designed handshake and message flow to ensure quantum-safe, authenticated communication:
+                        Entropia uses a carefully designed handshake and message flow to ensure quantum-safe, authenticated communication:
                     </p>
                     <div class="architecture-steps">
                         <div class="architecture-step">
@@ -916,12 +916,12 @@ go build -trimpath -ldflags="-s -w" -o quantterm .
     <footer>
         <div class="container">
             <div class="footer-links">
-                <a href="https://github.com/reschjonas/quantterm">GitHub Repository</a>
-                <a href="https://github.com/reschjonas/quantterm/blob/main/TECHNICAL_OVERVIEW.md">Technical Overview</a>
-                <a href="https://github.com/reschjonas/quantterm/issues">Report Issues</a>
-                <a href="https://github.com/reschjonas/quantterm/blob/main/LICENSE">MIT License</a>
+                <a href="https://github.com/reschjonas/entropia">GitHub Repository</a>
+                <a href="https://github.com/reschjonas/entropia/blob/main/TECHNICAL_OVERVIEW.md">Technical Overview</a>
+                <a href="https://github.com/reschjonas/entropia/issues">Report Issues</a>
+                <a href="https://github.com/reschjonas/entropia/blob/main/LICENSE">MIT License</a>
             </div>
-            <p>&copy; 2025 QuantTerm. Open source under MIT License.</p>
+            <p>&copy; 2025 Entropia. Open source under MIT License.</p>
             <p style="margin-top: 1rem; opacity: 0.7; font-size: 0.9rem;">
                 Built with ❤️ for a post-quantum world. Contributions welcome!
             </p>
