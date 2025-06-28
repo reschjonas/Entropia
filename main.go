@@ -9,10 +9,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"quantterm/internal/app"
-	"quantterm/internal/config"
-	"quantterm/internal/discovery"
-	"quantterm/internal/logger"
+	"entropia/internal/app"
+	"entropia/internal/config"
+	"entropia/internal/discovery"
+	"entropia/internal/logger"
 
 	"github.com/spf13/cobra"
 )
@@ -21,9 +21,9 @@ var (
 	version = "1.0.3-e2e"
 
 	rootCmd = &cobra.Command{
-		Use:   "quantterm",
+		Use:   "entropia",
 		Short: "Post-quantum end-to-end encrypted terminal chat",
-		Long: `QuantTerm - A decentralized, post-quantum end-to-end encrypted terminal chat application
+		Long: `Entropia - A decentralized, post-quantum end-to-end encrypted terminal chat application
 that supports both local (LAN) and global (Internet) connections.
 
 CONNECTION MODES:
@@ -38,7 +38,7 @@ CONNECTION MODES:
 • Cryptographic peer identity verification
 
 🌐 NETWORK TRANSPORT:
-QuantTerm uses QUIC to establish a reliable and secure transport channel.
+Entropia uses QUIC to establish a reliable and secure transport channel.
 The application-layer post-quantum cryptography is layered on top of QUIC's
 TLS 1.3 encryption for defense-in-depth. QUIC can operate over any IP network
 including:
@@ -77,14 +77,14 @@ SECURITY NOTE: Always verify identity fingerprints through a trusted channel!`,
 		Long: `Join an existing chat room using automatic peer discovery.
 
 AUTOMATIC DISCOVERY:
-QuantTerm will automatically find and connect to the room creator using:
+Entropia will automatically find and connect to the room creator using:
 • mDNS discovery (local networks)
 • UDP broadcast discovery (local networks) 
 • Global discovery (future enhancement)
 
 USAGE EXAMPLES:
-  quantterm join QuantTerm_ABC123XYZ789              # Automatic discovery
-  quantterm join QuantTerm_ABC123XYZ789 192.168.1.5:8080    # Manual override
+  entropia join Entropia_ABC123XYZ789              # Automatic discovery
+  entropia join Entropia_ABC123XYZ789 192.168.1.5:8080    # Manual override
 
 DISCOVERY FEATURES:
 • Fast discovery (usually connects within 5-10 seconds)
@@ -115,7 +115,7 @@ SECURITY NOTE: Always verify identity fingerprints before trusting messages!`,
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&logLevelFlag, "log-level", "", "Set log level (debug, info, warn, error). Overrides $QUANTTERM_LOG_LEVEL")
+	rootCmd.PersistentFlags().StringVar(&logLevelFlag, "log-level", "", "Set log level (debug, info, warn, error). Overrides $ENTROPIA_LOG_LEVEL")
 
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		if logLevelFlag != "" {
@@ -152,19 +152,19 @@ func runCreate() error {
 		<-sigChan
 	}()
 
-	quantApp, err := app.NewQuantTerm(cfg)
+	entApp, err := app.NewEntropia(cfg)
 	if err != nil {
-		return fmt.Errorf("failed to initialize QuantTerm: %w", err)
+		return fmt.Errorf("failed to initialize Entropia: %w", err)
 	}
-	defer quantApp.Close()
+	defer entApp.Close()
 
 	// show identity fingerprint
-	fingerprint, err := quantApp.GetPeerFingerprint()
+	fingerprint, err := entApp.GetPeerFingerprint()
 	if err != nil {
 		return fmt.Errorf("failed to get identity fingerprint: %w", err)
 	}
 
-	roomID, err := quantApp.CreateRoom(ctx)
+	roomID, err := entApp.CreateRoom(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create room: %w", err)
 	}
@@ -176,10 +176,10 @@ func runCreate() error {
 	}
 
 	// start multiple discovery services for max discoverability
-	go discovery.Advertise(ctx, roomID, quantApp.GetListenPort())               // mDNS
-	go discovery.StartDiscoveryResponder(ctx, roomID, quantApp.GetListenPort()) // broadcast responder
+	go discovery.Advertise(ctx, roomID, entApp.GetListenPort())               // mDNS
+	go discovery.StartDiscoveryResponder(ctx, roomID, entApp.GetListenPort()) // broadcast responder
 	if dhtServer != nil {
-		go discovery.AnnounceDHT(ctx, dhtServer, roomID, quantApp.GetListenPort()) // DHT
+		go discovery.AnnounceDHT(ctx, dhtServer, roomID, entApp.GetListenPort()) // DHT
 	}
 
 	// get external IP for user display
@@ -188,10 +188,10 @@ func runCreate() error {
 		logger.L().Warn("Could not determine external IP", "err", err)
 	}
 
-	logger.L().Info("Room created", "room_id", roomID, "fingerprint", fingerprint, "listen_port", quantApp.GetListenPort(), "external_addr", externalAddr)
+	logger.L().Info("Room created", "room_id", roomID, "fingerprint", fingerprint, "listen_port", entApp.GetListenPort(), "external_addr", externalAddr)
 	logger.L().Info("Starting chat interface")
 
-	return quantApp.StartChatInterface(ctx)
+	return entApp.StartChatInterface(ctx)
 }
 
 func runJoin(roomID, remoteAddr string) error {
@@ -205,14 +205,14 @@ func runJoin(roomID, remoteAddr string) error {
 		<-sigChan
 	}()
 
-	quantApp, err := app.NewQuantTerm(cfg)
+	entApp, err := app.NewEntropia(cfg)
 	if err != nil {
-		return fmt.Errorf("failed to initialize QuantTerm: %w", err)
+		return fmt.Errorf("failed to initialize Entropia: %w", err)
 	}
-	defer quantApp.Close()
+	defer entApp.Close()
 
 	// show identity fingerprint
-	fingerprint, err := quantApp.GetPeerFingerprint()
+	fingerprint, err := entApp.GetPeerFingerprint()
 	if err != nil {
 		return fmt.Errorf("failed to get identity fingerprint: %w", err)
 	}
@@ -230,7 +230,7 @@ func runJoin(roomID, remoteAddr string) error {
 		// use fast automatic discovery
 		addr, err := discovery.AutoDiscovery(ctx, roomID, dhtServer)
 		if err != nil {
-			return fmt.Errorf("automatic discovery failed: %w\n\n💡 TROUBLESHOOTING:\n   • Make sure the room creator is running\n   • Check firewall settings\n   • Try manual connection: quantterm join %s <ip:port>", err, roomID)
+			return fmt.Errorf("automatic discovery failed: %w\n\n💡 TROUBLESHOOTING:\n   • Make sure the room creator is running\n   • Check firewall settings\n   • Try manual connection: entropia join %s <ip:port>", err, roomID)
 		}
 
 		remoteAddr = addr
@@ -242,9 +242,9 @@ func runJoin(roomID, remoteAddr string) error {
 	logger.L().Info("Joining room", "room_id", roomID, "fingerprint", fingerprint, "remote_addr", remoteAddr)
 	logger.L().Info("Initiating secure handshake")
 
-	if err := quantApp.JoinRoom(ctx, roomID, remoteAddr); err != nil {
+	if err := entApp.JoinRoom(ctx, roomID, remoteAddr); err != nil {
 		return fmt.Errorf("failed to join room: %w", err)
 	}
 
-	return quantApp.StartChatInterface(ctx)
+	return entApp.StartChatInterface(ctx)
 }

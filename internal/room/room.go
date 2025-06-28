@@ -14,8 +14,8 @@ const (
 	// room ID length in characters
 	RoomIDLength = 32
 
-	// prefix for all QuantTerm room IDs
-	RoomIDPrefix = "QuantTerm_"
+	// prefix for all Entropia room IDs
+	RoomIDPrefix = "Entropia_"
 )
 
 // Room represents a chat room with its metadata
@@ -122,5 +122,5 @@ func (r *Room) GetShortID() string {
 // GetServiceName returns the service name for mDNS discovery
 func (r *Room) GetServiceName() string {
 	hash := GetDiscoveryHash(r.ID)
-	return fmt.Sprintf("_quantterm_%s._tcp", hash)
+	return fmt.Sprintf("_entropia_%s._tcp", hash)
 }

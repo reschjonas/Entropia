@@ -210,7 +210,7 @@ func BroadcastDiscovery(ctx context.Context, roomID string, timeout time.Duratio
 
 	// create discovery message
 	discoveryMsg := map[string]interface{}{
-		"type":    "quantterm_discovery",
+		"type":    "entropia_discovery",
 		"room_id": roomID,
 		"version": "2.0",
 	}
@@ -248,7 +248,7 @@ func BroadcastDiscovery(ctx context.Context, roomID string, timeout time.Duratio
 					continue
 				}
 
-				if response["type"] == "quantterm_response" && response["room_id"] == roomID {
+				if response["type"] == "entropia_response" && response["room_id"] == roomID {
 					if port, ok := response["port"].(float64); ok {
 						responsesChan <- fmt.Sprintf("%s:%d", addr.IP.String(), int(port))
 						return
@@ -310,10 +310,10 @@ func StartDiscoveryResponder(ctx context.Context, roomID string, port int) error
 					continue
 				}
 
-				if request["type"] == "quantterm_discovery" && request["room_id"] == roomID {
+				if request["type"] == "entropia_discovery" && request["room_id"] == roomID {
 					// send response with our port
 					response := map[string]interface{}{
-						"type":    "quantterm_response",
+						"type":    "entropia_response",
 						"room_id": roomID,
 						"port":    port,
 						"version": "2.0",

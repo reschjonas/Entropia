@@ -3,7 +3,7 @@ package network
 import (
 	"context"
 
-	"quantterm/internal/crypto"
+	"entropia/internal/crypto"
 )
 
 // Network is the common interface for all transport layers

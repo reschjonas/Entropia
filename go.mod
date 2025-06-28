@@ -1,4 +1,4 @@
-module quantterm
+module entropia
 
 go 1.24
 

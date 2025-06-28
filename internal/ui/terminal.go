@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"quantterm/internal/crypto"
+	"entropia/internal/crypto"
 )
 
 // TerminalUI is the simple terminal interface with E2E encryption indicators
@@ -64,7 +64,7 @@ func (ui *TerminalUI) showWelcomeMessage() {
 	ui.outputMux.Lock()
 	defer ui.outputMux.Unlock()
 
-	fmt.Printf("\nQuantTerm — Secure Chat\n")
+	fmt.Printf("\nEntropia — Secure Chat\n")
 	fmt.Printf("Room: %s\n", ui.roomID)
 	fmt.Printf("Waiting for secure handshake… (peers will appear automatically)\n")
 	fmt.Printf("Press Ctrl+C to quit at any time.\n\n")

@@ -1,4 +1,4 @@
-# QuantTerm 🛡️
+# Entropia 🛡️
 
 <p align="center">
   <a href="https://go.dev/"><img src="https://img.shields.io/badge/Go-1.24%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go Version"></a>
@@ -12,7 +12,7 @@
 
 > **Prototype – not production-ready.  Do **NOT** rely on it for real secrets.**
 
-QuantTerm is a tiny two-peer chat client that showcases how modern **post-quantum cryptography** can be combined with some neat discovery tricks to create a secure channel over any IP network in only a few hundred lines of Go.
+Entropia is a tiny two-peer chat client that showcases how modern **post-quantum cryptography** can be combined with some neat discovery tricks to create a secure channel over any IP network in only a few hundred lines of Go.
 
 **Actively developed & headed toward production-readiness — feedback and PRs welcome!**
 
@@ -24,7 +24,7 @@ Instead of trying to replace Signal or Matrix, the project focuses on demonstrat
 * periodic key rotation for forward secrecy, and
 * a reliable, multiplexed transport over QUIC.
 
-Curious about the internals?  See **[TECHNICAL_OVERVIEW.md](https://github.com/reschjonas/quantterm/blob/main/TECHNICAL_OVERVIEW.md)**.
+Curious about the internals?  See **TECHNICAL_OVERVIEW.md**.
 
 ---
 
@@ -73,26 +73,26 @@ Curious about the internals?  See **[TECHNICAL_OVERVIEW.md](https://github.com/r
 
 ### 1. Grab a pre-built binary *(coming soon)*
 
-When GitHub Releases are enabled you will simply download the archive for your OS/CPU, unpack and run `./quantterm`.
+When GitHub Releases are enabled you will simply download the archive for your OS/CPU, unpack and run `./entropia`.
 
 ### 2. Build from source (cross-platform)
 
 ```bash
 # Clone & build
-git clone https://github.com/reschjonas/quantterm.git
-cd quantterm
+git clone https://github.com/reschjonas/entropia.git
+cd entropia
 
 # Static binary for your OS/arch
-go build -trimpath -ldflags="-s -w" -o quantterm .
+go build -trimpath -ldflags="-s -w" -o entropia .
 
 # Or install into $GOBIN in one line (Go >= 1.20)
-go install github.com/reschjonas/quantterm@latest
+go install github.com/reschjonas/entropia@latest
 ```
 
 **Verify build** (optional):
 
 ```bash
-quantterm --version  # should print the version banner
+entropia --version  # should print the version banner
 ```
 
 ---
@@ -103,16 +103,16 @@ Prerequisite: **Go 1.24+**
 
 ```bash
 # build
-go build -o quantterm .
+go build -o entropia .
 
 # Terminal 1 – creator
-./quantterm create
+./entropia create
 
 # Terminal 2 – joiner (auto-discovery)
-./quantterm join <RoomID>
+./entropia join <RoomID>
 
 # Terminal 2 – joiner (manual address)
-./quantterm join <RoomID> <ip:port>
+./entropia join <RoomID> <ip:port>
 ```
 
 You can start chatting once *both* sides print:
@@ -131,19 +131,19 @@ Every peer prints a fingerprint derived from its long-term public keys.  Compare
 
 ## Logging
 
-QuantTerm ships with a **silent-by-default** structured logger powered by Go's `slog`.
+Entropia ships with a **silent-by-default** structured logger powered by Go's `slog`.
 
 Enable it either via a CLI flag:
 
 ```bash
-quantterm create --log-level info      # debug | info | warn | error
+entropia create --log-level info      # debug | info | warn | error
 ```
 
 or an environment variable:
 
 ```bash
-export QUANTTERM_LOG_LEVEL=debug
-quantterm join <RoomID>
+export ENTROPIA_LOG_LEVEL=debug
+entropia join <RoomID>
 ```
 
 Logs are emitted in JSON format on stdout so they can be piped into tools like `jq` for analysis.
@@ -163,4 +163,4 @@ PRs and suggestions are welcome!
 
 ## Licence
 
-[MIT](https://github.com/reschjonas/quantterm/blob/main/LICENSE)
+[MIT](https://github.com/reschjonas/entropia/blob/main/LICENSE)

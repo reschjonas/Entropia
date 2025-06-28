@@ -9,7 +9,7 @@ import (
 var defaultLogger *slog.Logger
 
 func init() {
-	lvlStr := os.Getenv("QUANTTERM_LOG_LEVEL")
+	lvlStr := os.Getenv("ENTROPIA_LOG_LEVEL")
 	if lvlStr == "" {
 		// silent by default – discard logs until enabled via flag or env var
 		defaultLogger = slog.New(slog.NewTextHandler(io.Discard, nil))

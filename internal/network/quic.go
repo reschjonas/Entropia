@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"quantterm/internal/crypto"
-	"quantterm/internal/logger"
+	"entropia/internal/crypto"
+	"entropia/internal/logger"
 
 	"crypto/sha256"
 
@@ -477,7 +477,7 @@ func generateTLSConfig() (*tls.Config, error) {
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject: pkix.Name{
-			Organization: []string{"QuantTerm"},
+			Organization: []string{"Entropia"},
 		},
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(time.Hour * 24 * 365),
@@ -492,6 +492,6 @@ func generateTLSConfig() (*tls.Config, error) {
 	}
 	return &tls.Config{
 		Certificates: []tls.Certificate{{Certificate: [][]byte{certDER}, PrivateKey: key}},
-		NextProtos:   []string{"quantterm-chat"},
+		NextProtos:   []string{"entropia-chat"},
 	}, nil
 }

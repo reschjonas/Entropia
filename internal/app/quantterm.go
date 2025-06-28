@@ -9,15 +9,15 @@ import (
 	"net"
 	"time"
 
-	"quantterm/internal/config"
-	"quantterm/internal/crypto"
-	"quantterm/internal/network"
-	"quantterm/internal/room"
-	"quantterm/internal/ui"
+	"entropia/internal/config"
+	"entropia/internal/crypto"
+	"entropia/internal/network"
+	"entropia/internal/room"
+	"entropia/internal/ui"
 )
 
-// QuantTerm is the main application state
-type QuantTerm struct {
+// Entropia is the main application state
+type Entropia struct {
 	config      *config.Config
 	peerID      string
 	currentRoom *room.Room
@@ -35,8 +35,8 @@ type QuantTerm struct {
 	stopChan chan struct{}
 }
 
-// NewQuantTerm creates a new QuantTerm instance
-func NewQuantTerm(cfg *config.Config) (*QuantTerm, error) {
+// NewEntropia creates a new Entropia instance
+func NewEntropia(cfg *config.Config) (*Entropia, error) {
 	// generate a random peer ID for this session
 	peerID, err := generatePeerID()
 	if err != nil {
@@ -55,7 +55,7 @@ func NewQuantTerm(cfg *config.Config) (*QuantTerm, error) {
 		return nil, fmt.Errorf("failed to find available port: %w", err)
 	}
 
-	return &QuantTerm{
+	return &Entropia{
 		config:     cfg,
 		peerID:     peerID,
 		pqCrypto:   pqCrypto,
@@ -65,8 +65,8 @@ func NewQuantTerm(cfg *config.Config) (*QuantTerm, error) {
 }
 
 // CreateRoom creates a new chat room and starts listening
-func (qt *QuantTerm) CreateRoom(ctx context.Context) (string, error) {
-	newRoom, err := room.NewRoom("QuantTerm E2E Chat", "Post-quantum encrypted chat room", qt.config.Network.MaxPeers, false)
+func (qt *Entropia) CreateRoom(ctx context.Context) (string, error) {
+	newRoom, err := room.NewRoom("Entropia E2E Chat", "Post-quantum encrypted chat room", qt.config.Network.MaxPeers, false)
 	if err != nil {
 		return "", fmt.Errorf("failed to create room: %w", err)
 	}
@@ -85,14 +85,14 @@ func (qt *QuantTerm) CreateRoom(ctx context.Context) (string, error) {
 }
 
 // JoinRoom joins an existing chat room
-func (qt *QuantTerm) JoinRoom(ctx context.Context, roomID string, remoteAddr string) error {
+func (qt *Entropia) JoinRoom(ctx context.Context, roomID string, remoteAddr string) error {
 	if !room.ValidateRoomID(roomID) {
 		return fmt.Errorf("invalid room ID format")
 	}
 
 	qt.currentRoom = &room.Room{
 		ID:       roomID,
-		Name:     "QuantTerm E2E Chat",
+		Name:     "Entropia E2E Chat",
 		MaxPeers: qt.config.Network.MaxPeers,
 	}
 
@@ -109,7 +109,7 @@ func (qt *QuantTerm) JoinRoom(ctx context.Context, roomID string, remoteAddr str
 }
 
 // StartChatInterface starts the terminal UI and message handling
-func (qt *QuantTerm) StartChatInterface(ctx context.Context) error {
+func (qt *Entropia) StartChatInterface(ctx context.Context) error {
 	// start background handlers
 	go qt.handleMessages(ctx)
 	go qt.handlePeerEvents(ctx)
@@ -121,7 +121,7 @@ func (qt *QuantTerm) StartChatInterface(ctx context.Context) error {
 }
 
 // Close shuts down the application
-func (qt *QuantTerm) Close() {
+func (qt *Entropia) Close() {
 	if !qt.isRunning {
 		return
 	}
@@ -139,7 +139,7 @@ func (qt *QuantTerm) Close() {
 }
 
 // initialize all the components we need
-func (qt *QuantTerm) initializeComponents(ctx context.Context, isListener bool, remoteAddr string) error {
+func (qt *Entropia) initializeComponents(ctx context.Context, isListener bool, remoteAddr string) error {
 	var err error
 
 	qt.network, err = network.NewNetwork(
@@ -161,7 +161,7 @@ func (qt *QuantTerm) initializeComponents(ctx context.Context, isListener bool, 
 }
 
 // start up networking and discovery
-func (qt *QuantTerm) startServices(ctx context.Context) error {
+func (qt *Entropia) startServices(ctx context.Context) error {
 	qt.isRunning = true
 
 	if err := qt.network.Start(ctx); err != nil {
@@ -172,7 +172,7 @@ func (qt *QuantTerm) startServices(ctx context.Context) error {
 }
 
 // handle sending and receiving encrypted messages
-func (qt *QuantTerm) handleMessages(ctx context.Context) {
+func (qt *Entropia) handleMessages(ctx context.Context) {
 	sendChan := qt.terminalUI.GetSendChannel()
 	receiveChan := qt.network.GetIncomingMessages()
 
@@ -195,7 +195,7 @@ func (qt *QuantTerm) handleMessages(ctx context.Context) {
 }
 
 // handle peer connection events
-func (qt *QuantTerm) handlePeerEvents(ctx context.Context) {
+func (qt *Entropia) handlePeerEvents(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -217,7 +217,7 @@ func (qt *QuantTerm) handlePeerEvents(ctx context.Context) {
 }
 
 // handle security events and fingerprint displays
-func (qt *QuantTerm) handleSecurityEvents(ctx context.Context) {
+func (qt *Entropia) handleSecurityEvents(ctx context.Context) {
 	fingerprintTicker := time.NewTicker(60 * time.Second)
 	keyRotationCheckTicker := time.NewTicker(1 * time.Minute) // check every minute
 	defer fingerprintTicker.Stop()
@@ -260,7 +260,7 @@ func (qt *QuantTerm) handleSecurityEvents(ctx context.Context) {
 }
 
 // get fingerprints for all known peers
-func (qt *QuantTerm) getPeerFingerprints() map[string]string {
+func (qt *Entropia) getPeerFingerprints() map[string]string {
 	fingerprints := make(map[string]string)
 
 	verifiedPeers := qt.pqCrypto.GetVerifiedPeers()
@@ -350,22 +350,22 @@ func isPortAvailable(port int) bool {
 }
 
 // GetPeerFingerprint returns our cryptographic fingerprint
-func (qt *QuantTerm) GetPeerFingerprint() (string, error) {
+func (qt *Entropia) GetPeerFingerprint() (string, error) {
 	return qt.pqCrypto.GetIdentityFingerprint()
 }
 
 // GetRoomInfo returns info about the current room
-func (qt *QuantTerm) GetRoomInfo() *room.Room {
+func (qt *Entropia) GetRoomInfo() *room.Room {
 	return qt.currentRoom
 }
 
 // GetListenPort returns the port we're listening on
-func (qt *QuantTerm) GetListenPort() int {
+func (qt *Entropia) GetListenPort() int {
 	return qt.listenPort
 }
 
 // GetConnectedPeerCount returns how many peers are connected
-func (qt *QuantTerm) GetConnectedPeerCount() int {
+func (qt *Entropia) GetConnectedPeerCount() int {
 	if qt.network == nil {
 		return 0
 	}
@@ -373,7 +373,7 @@ func (qt *QuantTerm) GetConnectedPeerCount() int {
 }
 
 // GetVerifiedPeerCount returns how many peers are verified
-func (qt *QuantTerm) GetVerifiedPeerCount() int {
+func (qt *Entropia) GetVerifiedPeerCount() int {
 	if qt.pqCrypto == nil {
 		return 0
 	}
@@ -381,7 +381,7 @@ func (qt *QuantTerm) GetVerifiedPeerCount() int {
 }
 
 // GetNetworkStatus returns current network and encryption status
-func (qt *QuantTerm) GetNetworkStatus() map[string]interface{} {
+func (qt *Entropia) GetNetworkStatus() map[string]interface{} {
 	status := map[string]interface{}{
 		"peer_id":         qt.peerID,
 		"listen_port":     qt.listenPort,
@@ -410,7 +410,7 @@ func (qt *QuantTerm) GetNetworkStatus() map[string]interface{} {
 }
 
 // GetSecuritySummary returns a summary of our security features
-func (qt *QuantTerm) GetSecuritySummary() map[string]interface{} {
+func (qt *Entropia) GetSecuritySummary() map[string]interface{} {
 	summary := map[string]interface{}{
 		"encryption_algorithms": map[string]string{
 			"key_exchange": "CRYSTALS-Kyber-1024",
@@ -443,7 +443,7 @@ func (qt *QuantTerm) GetSecuritySummary() map[string]interface{} {
 }
 
 // handleNetworkErrors listens for async errors from the transport layer
-func (qt *QuantTerm) handleNetworkErrors(ctx context.Context) {
+func (qt *Entropia) handleNetworkErrors(ctx context.Context) {
 	if qt.network == nil {
 		return
 	}

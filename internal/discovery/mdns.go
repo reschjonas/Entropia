@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"quantterm/internal/room"
+	"entropia/internal/room"
 
 	"github.com/grandcat/zeroconf"
 )
@@ -63,5 +63,5 @@ func Lookup(ctx context.Context, roomID string, timeout time.Duration) (string, 
 // make a unique service name for each room
 func serviceTypeForRoom(roomID string) string {
 	hash := room.GetDiscoveryHash(roomID)
-	return fmt.Sprintf("_quantterm_%s._udp", hash)
+	return fmt.Sprintf("_entropia_%s._udp", hash)
 }

@@ -7,7 +7,7 @@ import (
 	"net"
 	"time"
 
-	"quantterm/internal/logger"
+	"entropia/internal/logger"
 
 	"github.com/anacrolix/dht/v2"
 	"github.com/anacrolix/torrent"

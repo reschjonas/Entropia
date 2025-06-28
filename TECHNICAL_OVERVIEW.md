@@ -1,4 +1,4 @@
-# QuantTerm – Technical Overview
+# Entropia – Technical Overview
 
 > *A walk-through of the moving parts, crypto choices and data flows.*
 
@@ -22,8 +22,8 @@
 ```mermaid
 flowchart TD
     subgraph CLI
-        A1[quantterm create] ---|starts| APP
-        A2[quantterm join] ---|starts| APP
+        A1[entropia create] ---|starts| APP
+        A2[entropia join] ---|starts| APP
     end
 
     subgraph APP[internal/app]
@@ -99,7 +99,7 @@ Discovery tries **three** methods in parallel and returns the first success:
 
 | Method | Scope | How it works |
 | :--- | :--- | :--- |
-| **mDNS** | LAN | Service name `_quantterm_<hash>._udp` is advertised & browsed. |
+| **mDNS** | LAN | Service name `_entropia_<hash>._udp` is advertised & browsed. |
 | **UDP Broadcast** | LAN | Peers broadcast a JSON blob to `192.168/10./172.31` broadcast addresses. |
 | **DHT (BitTorrent Kademlia)** | Internet | Listener announces `ip:port` on the public BitTorrent DHT; the joiner performs a traversal to discover peers. |
 
@@ -162,11 +162,11 @@ The application keeps runtime noise at a minimum by **defaulting to silence**.  
 
 ```bash
 # JSON logs on stdout, INFO level
-quantterm create --log-level info
+entropia create --log-level info
 
 # or via environment variable
-export QUANTTERM_LOG_LEVEL=debug
-quantterm join <RoomID>
+export ENTROPIA_LOG_LEVEL=debug
+entropia join <RoomID>
 ```
 
 Levels: `debug`, `info`, `warn`, `error` (case-insensitive).
