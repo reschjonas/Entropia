@@ -11,7 +11,8 @@ import (
 
 	"github.com/cloudflare/circl/kem"
 	"github.com/cloudflare/circl/kem/kyber/kyber1024"
-	"github.com/cloudflare/circl/sign/dilithium"
+	"github.com/cloudflare/circl/sign"
+	mode5 "github.com/cloudflare/circl/sign/dilithium/mode5"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/hkdf"
 )
@@ -39,14 +40,14 @@ type PQCrypto struct {
 	// Kyber for key exchange
 	kemScheme kem.Scheme
 
-	// DILITHIUM for signatures
-	sigMode dilithium.Mode
+	// Dilithium5 signature scheme from CIRCL generic interface
+	sigScheme sign.Scheme
 
 	// our long-term identity keys
 	identityKEMPrivateKey kem.PrivateKey
 	identityKEMPublicKey  kem.PublicKey
-	identitySigPrivateKey dilithium.PrivateKey
-	identitySigPublicKey  dilithium.PublicKey
+	identitySigPrivateKey sign.PrivateKey
+	identitySigPublicKey  sign.PublicKey
 
 	// ephemeral keys for forward secrecy
 	ephemeralKEMPrivateKey kem.PrivateKey
@@ -124,7 +125,7 @@ type PeerAnnouncement struct {
 func NewPQCrypto() (*PQCrypto, error) {
 	pq := &PQCrypto{
 		kemScheme:           kyber1024.Scheme(),
-		sigMode:             dilithium.Mode5,
+		sigScheme:           mode5.Scheme(),
 		peers:               make(map[string]*PeerCryptoState),
 		keyRotationInterval: 15 * time.Minute, // rotate keys every 15 minutes
 		lastKeyRotation:     time.Now(),
@@ -153,8 +154,8 @@ func (pq *PQCrypto) generateIdentityKeyPairs() error {
 	pq.identityKEMPublicKey = kemPub
 	pq.identityKEMPrivateKey = kemPriv
 
-	// generate DILITHIUM key pair for signatures
-	sigPub, sigPriv, err := pq.sigMode.GenerateKey(rand.Reader)
+	// generate Dilithium key pair for signatures
+	sigPub, sigPriv, err := pq.sigScheme.GenerateKey()
 	if err != nil {
 		return err
 	}
@@ -178,7 +179,7 @@ func (pq *PQCrypto) generateEphemeralKeyPairs() error {
 // GetIdentityPublicKeys returns our identity public keys
 func (pq *PQCrypto) GetIdentityPublicKeys() ([]byte, []byte) {
 	kemPubBytes, _ := pq.identityKEMPublicKey.MarshalBinary()
-	sigPubBytes := pq.identitySigPublicKey.Bytes()
+	sigPubBytes, _ := pq.identitySigPublicKey.MarshalBinary()
 	return kemPubBytes, sigPubBytes
 }
 
@@ -211,7 +212,7 @@ func (pq *PQCrypto) CreatePeerAnnouncement(peerID string) (*PeerAnnouncement, er
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize announcement for signing: %w", err)
 	}
-	signature := pq.sigMode.Sign(pq.identitySigPrivateKey, signData)
+	signature := pq.sigScheme.Sign(pq.identitySigPrivateKey, signData, nil)
 	announcement.Signature = signature
 
 	return announcement, nil
@@ -226,20 +227,12 @@ func (pq *PQCrypto) ProcessPeerAnnouncement(announcement *PeerAnnouncement) erro
 	}
 
 	// convert signature public key
-	var sigPub dilithium.PublicKey
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				sigPub = nil
-			}
-		}()
-		sigPub = pq.sigMode.PublicKeyFromBytes(announcement.IdentitySigPubKey)
-	}()
-	if sigPub == nil {
+	sigPub, err := pq.sigScheme.UnmarshalBinaryPublicKey(announcement.IdentitySigPubKey)
+	if err != nil {
 		return ErrInvalidKeySize
 	}
 
-	if !pq.sigMode.Verify(sigPub, signData, announcement.Signature) {
+	if !pq.sigScheme.Verify(sigPub, signData, announcement.Signature, nil) {
 		return ErrInvalidSignature
 	}
 
@@ -319,7 +312,7 @@ func (pq *PQCrypto) InitiateKeyExchange(peerID string, senderID string) (*KeyExc
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize key exchange for signing: %w", err)
 	}
-	signature := pq.sigMode.Sign(pq.identitySigPrivateKey, signData)
+	signature := pq.sigScheme.Sign(pq.identitySigPrivateKey, signData, nil)
 	keyExchange.Signature = signature
 
 	// store the shared secret
@@ -340,20 +333,12 @@ func (pq *PQCrypto) ProcessKeyExchange(keyExchange *KeyExchangeMessage) error {
 		return fmt.Errorf("failed to serialize key exchange for verification: %w", err)
 	}
 
-	var sigPub dilithium.PublicKey
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				sigPub = nil
-			}
-		}()
-		sigPub = pq.sigMode.PublicKeyFromBytes(keyExchange.IdentitySigPubKey)
-	}()
-	if sigPub == nil {
+	sigPub, err := pq.sigScheme.UnmarshalBinaryPublicKey(keyExchange.IdentitySigPubKey)
+	if err != nil {
 		return ErrInvalidKeySize
 	}
 
-	if !pq.sigMode.Verify(sigPub, signData, keyExchange.Signature) {
+	if !pq.sigScheme.Verify(sigPub, signData, keyExchange.Signature, nil) {
 		return ErrInvalidSignature
 	}
 
@@ -470,7 +455,7 @@ func (pq *PQCrypto) EncryptMessageForPeer(message, peerID, senderID string) (*En
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize message for signing: %w", err)
 	}
-	signature := pq.sigMode.Sign(pq.identitySigPrivateKey, signData)
+	signature := pq.sigScheme.Sign(pq.identitySigPrivateKey, signData, nil)
 	encMsg.Signature = signature
 
 	return encMsg, nil
@@ -492,20 +477,12 @@ func (pq *PQCrypto) DecryptMessageFromPeer(encMsg *EncryptedMessage) (*MessagePa
 		return nil, fmt.Errorf("failed to serialize message for verification: %w", err)
 	}
 
-	var sigPub dilithium.PublicKey
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				sigPub = nil
-			}
-		}()
-		sigPub = pq.sigMode.PublicKeyFromBytes(peer.IdentitySigPublicKey)
-	}()
-	if sigPub == nil {
+	sigPub, err := pq.sigScheme.UnmarshalBinaryPublicKey(peer.IdentitySigPublicKey)
+	if err != nil {
 		return nil, ErrInvalidKeySize
 	}
 
-	if !pq.sigMode.Verify(sigPub, signData, encMsg.Signature) {
+	if !pq.sigScheme.Verify(sigPub, signData, encMsg.Signature, nil) {
 		return nil, ErrInvalidSignature
 	}
 
@@ -618,7 +595,7 @@ func (pq *PQCrypto) GetPeerFingerprint(peerID string) (string, error) {
 // GetIdentityFingerprint returns our identity fingerprint
 func (pq *PQCrypto) GetIdentityFingerprint() (string, error) {
 	kemPubBytes, _ := pq.identityKEMPublicKey.MarshalBinary()
-	sigPubBytes := pq.identitySigPublicKey.Bytes()
+	sigPubBytes, _ := pq.identitySigPublicKey.MarshalBinary()
 
 	hash := sha256.New()
 	hash.Write(kemPubBytes)
