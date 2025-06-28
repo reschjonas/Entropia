@@ -11,7 +11,7 @@ require (
 	github.com/cloudflare/circl v1.6.1
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/pion/stun v0.6.1
-	github.com/quic-go/quic-go v0.45.1
+	github.com/quic-go/quic-go v0.48.2
 	github.com/spf13/cobra v1.8.0
 	golang.org/x/crypto v0.39.0
 )
