@@ -7,6 +7,8 @@ import (
 	"net"
 	"time"
 
+	"quantterm/internal/logger"
+
 	"github.com/anacrolix/dht/v2"
 	"github.com/anacrolix/torrent"
 )
@@ -36,15 +38,15 @@ func AnnounceDHT(ctx context.Context, server *dht.Server, roomID string, listenP
 	defer ticker.Stop()
 
 	for {
-		fmt.Printf("📢 Announcing room %s on DHT...\n", roomID[:8])
+		logger.L().Debug("DHT announce", "room", roomID[:8])
 		_, err := server.Announce(infoHash, listenPort, true)
 		if err != nil {
-			fmt.Printf("⚠️ DHT announcement failed: %v\n", err)
+			logger.L().Warn("DHT announce failed", "err", err)
 		}
 		select {
 		case <-ticker.C:
 		case <-ctx.Done():
-			fmt.Println("🛑 Stopping DHT announcement.")
+			logger.L().Info("Stopping DHT announcement")
 			return
 		}
 	}
@@ -72,7 +74,7 @@ func LookupDHT(ctx context.Context, server *dht.Server, roomID string, timeout t
 					continue // skip peers that don't report a port
 				}
 				addr := net.TCPAddr{IP: peer.IP, Port: peer.Port}
-				fmt.Printf("✅ Found peer via DHT: %s\n", addr.String())
+				logger.L().Info("Peer found via DHT", "addr", addr.String())
 				return addr.String(), nil
 			}
 		}

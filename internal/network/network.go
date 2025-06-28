@@ -27,6 +27,9 @@ type Network interface {
 	// fresh shared secrets with all connected peers. It returns a boolean that
 	// indicates whether a rotation actually took place.
 	ForceKeyRotation() (bool, error)
+
+	// get the channel where the transport reports asynchronous errors
+	GetErrorChannel() <-chan error
 }
 
 // NewNetwork returns a QUIC-based transport.

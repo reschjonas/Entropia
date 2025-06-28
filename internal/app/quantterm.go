@@ -114,6 +114,7 @@ func (qt *QuantTerm) StartChatInterface(ctx context.Context) error {
 	go qt.handleMessages(ctx)
 	go qt.handlePeerEvents(ctx)
 	go qt.handleSecurityEvents(ctx)
+	go qt.handleNetworkErrors(ctx)
 
 	// start the UI (this blocks until quit)
 	return qt.terminalUI.Start(ctx)
@@ -439,4 +440,28 @@ func (qt *QuantTerm) GetSecuritySummary() map[string]interface{} {
 	}
 
 	return summary
+}
+
+// handleNetworkErrors listens for async errors from the transport layer
+func (qt *QuantTerm) handleNetworkErrors(ctx context.Context) {
+	if qt.network == nil {
+		return
+	}
+
+	errChan := qt.network.GetErrorChannel()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-qt.stopChan:
+			return
+		case err := <-errChan:
+			if err == nil {
+				continue
+			}
+			if qt.terminalUI != nil {
+				qt.terminalUI.AddSystemMessage(fmt.Sprintf("⚠️  Network error: %v", err))
+			}
+		}
+	}
 }

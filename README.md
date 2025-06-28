@@ -33,6 +33,7 @@ Curious about the internals?  See **TECHNICAL_OVERVIEW.md**.
 - [Highlight Features](#highlight-features)
 - [Quick-Start](#quick-start)
 - [Fingerprint Verification](#fingerprint-verification)
+- [Logging](#logging)
 - [Roadmap / Ideas](#roadmap--ideas)
 - [Licence](#licence)
 
@@ -122,6 +123,27 @@ You can start chatting once *both* sides print:
 ## Fingerprint Verification
 
 Every peer prints a fingerprint derived from its long-term public keys.  Compare these fingerprints **out-of-band** (phone, video call, etc.) before trusting any messages.
+
+---
+
+## Logging
+
+QuantTerm ships with a **silent-by-default** structured logger powered by Go's `slog`.
+
+Enable it either via a CLI flag:
+
+```bash
+quantterm create --log-level info      # debug | info | warn | error
+```
+
+or an environment variable:
+
+```bash
+export QUANTTERM_LOG_LEVEL=debug
+quantterm join <RoomID>
+```
+
+Logs are emitted in JSON format on stdout so they can be piped into tools like `jq` for analysis.
 
 ---
 

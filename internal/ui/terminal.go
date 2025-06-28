@@ -66,7 +66,8 @@ func (ui *TerminalUI) showWelcomeMessage() {
 
 	fmt.Printf("\nQuantTerm — Secure Chat\n")
 	fmt.Printf("Room: %s\n", ui.roomID)
-	fmt.Printf("Waiting for secure handshake… (peers will appear automatically)\n\n")
+	fmt.Printf("Waiting for secure handshake… (peers will appear automatically)\n")
+	fmt.Printf("Press Ctrl+C to quit at any time.\n\n")
 }
 
 // Start starts the terminal UI

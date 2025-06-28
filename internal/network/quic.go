@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"quantterm/internal/crypto"
+	"quantterm/internal/logger"
 
 	"github.com/quic-go/quic-go"
 )
@@ -43,6 +44,9 @@ type QuicNetwork struct {
 
 	incomingMessages chan *crypto.MessagePayload
 
+	// asynchronous error reporting
+	errorChan chan error
+
 	conn      quic.Connection
 	connMutex sync.RWMutex
 
@@ -69,6 +73,7 @@ func NewQuicNetwork(ctx context.Context, peerID, roomID string, listenPort int, 
 		listenPort:       listenPort,
 		remoteAddr:       remoteAddr,
 		incomingMessages: make(chan *crypto.MessagePayload, 100),
+		errorChan:        make(chan error, 10),
 		keyExchangeSent:  make(map[string]bool),
 	}
 	return qn, nil
@@ -124,7 +129,7 @@ func (qn *QuicNetwork) SendMessage(ctx context.Context, msg string) error {
 		Timestamp: time.Now().Unix(),
 		SenderID:  qn.localPeerID,
 	}
-	fmt.Printf("🔍 Sending message to peer %s, payload size: %d bytes\n", peerID[:8], len(msgBytes))
+	logger.L().Debug("Sending message", "peer", peerID[:8], "size", len(msgBytes))
 	return qn.writeWrapper(wrapper)
 }
 
@@ -138,6 +143,18 @@ func (qn *QuicNetwork) GetConnectedPeers() []string {
 	return append([]string(nil), qn.connectedIDs...)
 }
 
+func (qn *QuicNetwork) GetErrorChannel() <-chan error {
+	return qn.errorChan
+}
+
+func (qn *QuicNetwork) sendError(err error) {
+	select {
+	case qn.errorChan <- err:
+	default:
+		// channel full; drop to avoid blocking inside critical paths
+	}
+}
+
 func (qn *QuicNetwork) listenQUIC() error {
 	tlsConfig, err := generateTLSConfig()
 	if err != nil {
@@ -149,7 +166,7 @@ func (qn *QuicNetwork) listenQUIC() error {
 	if err != nil {
 		return fmt.Errorf("failed to listen on %s: %w", addr, err)
 	}
-	fmt.Printf("📡 Listening on QUIC %s\n", addr)
+	logger.L().Info("Listening on QUIC", "addr", addr)
 
 	go qn.acceptLoop(listener)
 
@@ -161,19 +178,20 @@ func (qn *QuicNetwork) acceptLoop(listener *quic.Listener) {
 	// accept one connection for our 1-to-1 chat
 	conn, err := listener.Accept(qn.ctx)
 	if err != nil {
-		fmt.Printf("🔌 Failed to accept connection: %v\n", err)
+		logger.L().Error("Accept error", "err", err)
+		qn.sendError(err)
 		return
 	}
 
 	qn.connMutex.Lock()
 	qn.conn = conn
 	qn.connMutex.Unlock()
-	fmt.Printf("🤝 Peer connected from %s\n", conn.RemoteAddr().String())
+	logger.L().Info("Peer connected", "remote", conn.RemoteAddr().String())
 
 	// joiner knows the remote address and can send announcement immediately
 	// listener should send announcement after getting a connection
 	if err := qn.sendPeerAnnouncement(); err != nil {
-		fmt.Printf("❌ Failed to send peer announcement: %v\n", err)
+		logger.L().Error("Peer announcement send failed", "err", err)
 	}
 
 	qn.readLoop(conn)
@@ -191,6 +209,7 @@ func (qn *QuicNetwork) dialQUIC() error {
 
 	conn, err := quic.DialAddr(qn.ctx, qn.remoteAddr, tlsConfig, nil)
 	if err != nil {
+		qn.sendError(err)
 		return fmt.Errorf("failed to dial %s: %w", qn.remoteAddr, err)
 	}
 
@@ -198,7 +217,7 @@ func (qn *QuicNetwork) dialQUIC() error {
 	qn.conn = conn
 	qn.connMutex.Unlock()
 
-	fmt.Printf("✅ Connected to peer via QUIC (%s)\n", conn.RemoteAddr().String())
+	logger.L().Info("Dialed peer", "remote", conn.RemoteAddr().String())
 
 	// joiner knows the remote address and can send announcement immediately
 	if err := qn.sendPeerAnnouncement(); err != nil {
@@ -214,7 +233,8 @@ func (qn *QuicNetwork) readLoop(conn quic.Connection) {
 	for {
 		stream, err := conn.AcceptStream(qn.ctx)
 		if err != nil {
-			fmt.Printf("🔌 Connection error: %v\n", err)
+			logger.L().Error("Connection stream error", "err", err)
+			qn.sendError(err)
 			qn.Stop()
 			return
 		}
@@ -227,10 +247,10 @@ func (qn *QuicNetwork) handleStream(stream quic.Stream) {
 	decoder := json.NewDecoder(stream)
 	var wrapper message
 	if err := decoder.Decode(&wrapper); err != nil {
-		fmt.Printf("🔍 Received invalid message: %v\n", err)
+		logger.L().Warn("Invalid message", "err", err)
 		return
 	}
-	fmt.Printf("🔍 Received %s message from %s, size: %d bytes\n", wrapper.Type, wrapper.SenderID[:8], len(wrapper.Payload))
+	logger.L().Debug("Received wrapper", "type", wrapper.Type, "from", wrapper.SenderID[:8], "size", len(wrapper.Payload))
 	qn.handleWrapper(wrapper)
 }
 
@@ -245,6 +265,7 @@ func (qn *QuicNetwork) writeWrapper(w message) error {
 
 	stream, err := conn.OpenStreamSync(qn.ctx)
 	if err != nil {
+		qn.sendError(err)
 		return fmt.Errorf("failed to open stream: %w", err)
 	}
 	defer stream.Close()
@@ -274,7 +295,7 @@ func (qn *QuicNetwork) handlePeerAnnouncement(w message) {
 		return
 	}
 	if err := qn.pqCrypto.ProcessPeerAnnouncement(announcement); err != nil {
-		fmt.Printf("❌ Invalid peer announcement: %v\n", err)
+		logger.L().Warn("Invalid peer announcement", "err", err)
 		return
 	}
 
@@ -297,7 +318,7 @@ func (qn *QuicNetwork) handlePeerAnnouncement(w message) {
 
 	if !alreadySent {
 		if err := qn.sendKeyExchange(announcement.PeerID); err != nil {
-			fmt.Printf("❌ Key exchange failed: %v\n", err)
+			logger.L().Error("Key exchange failed", "err", err)
 			qn.keyExchangeMutex.Lock()
 			qn.keyExchangeSent[announcement.PeerID] = false
 			qn.keyExchangeMutex.Unlock()
@@ -315,32 +336,32 @@ func (qn *QuicNetwork) handleKeyExchange(w message) {
 		return
 	}
 	if err := qn.pqCrypto.ProcessKeyExchange(keyEx); err != nil {
-		fmt.Printf("❌ Invalid key exchange: %v\n", err)
+		logger.L().Warn("Invalid key exchange", "err", err)
 		return
 	}
-	fmt.Printf("🔐 Secure channel established with peer %s\n", keyEx.SenderID[:8])
+	logger.L().Info("Secure channel established", "peer", keyEx.SenderID[:8])
 }
 
 func (qn *QuicNetwork) handleEncryptedChat(w message) {
 	bytesPayload, err := hex.DecodeString(w.Payload)
 	if err != nil {
-		fmt.Printf("🔍 Message decode error: %v\n", err)
+		logger.L().Warn("Message decode error", "err", err)
 		return
 	}
 	encMsg, err := crypto.DeserializeEncryptedMessage(bytesPayload)
 	if err != nil {
-		fmt.Printf("🔍 Message deserialization error: %v\n", err)
+		logger.L().Warn("Message deserialization error", "err", err)
 		return
 	}
 	payload, err := qn.pqCrypto.DecryptMessageFromPeer(encMsg)
 	if err != nil {
-		fmt.Printf("🔍 Message decryption error: %v\n", err)
+		logger.L().Warn("Message decryption error", "err", err)
 		return
 	}
 	select {
 	case qn.incomingMessages <- payload:
 	default:
-		fmt.Printf("🔍 Message channel full, dropping message\n")
+		logger.L().Warn("Incoming message channel full; dropping")
 	}
 }
 
@@ -412,7 +433,7 @@ func (qn *QuicNetwork) ForceKeyRotation() (bool, error) {
 	}
 
 	if len(peerIDs) > 0 {
-		fmt.Printf("🔄 Keys rotated – re-established secrets with %d peer(s)\n", len(peerIDs))
+		logger.L().Info("Keys rotated", "peers", len(peerIDs))
 	}
 
 	return rotated, aggErr

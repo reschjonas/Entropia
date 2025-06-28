@@ -12,12 +12,13 @@ import (
 	"quantterm/internal/app"
 	"quantterm/internal/config"
 	"quantterm/internal/discovery"
+	"quantterm/internal/logger"
 
 	"github.com/spf13/cobra"
 )
 
 var (
-	version = "1.0.1-e2e"
+	version = "1.0.2-e2e"
 
 	rootCmd = &cobra.Command{
 		Use:   "quantterm",
@@ -108,9 +109,23 @@ SECURITY NOTE: Always verify identity fingerprints before trusting messages!`,
 			return runJoin(roomID, remote)
 		},
 	}
+
+	// CLI global flags
+	logLevelFlag string
 )
 
 func init() {
+	rootCmd.PersistentFlags().StringVar(&logLevelFlag, "log-level", "", "Set log level (debug, info, warn, error). Overrides $QUANTTERM_LOG_LEVEL")
+
+	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		if logLevelFlag != "" {
+			// apply user-provided level
+			lvl := logger.ParseLevel(logLevelFlag)
+			logger.SetLevel(lvl)
+			logger.L().Info("Log level set via CLI flag", "level", logLevelFlag)
+		}
+	}
+
 	rootCmd.AddCommand(createCmd)
 	rootCmd.AddCommand(joinCmd)
 }
@@ -157,8 +172,7 @@ func runCreate() error {
 	// start DHT node for discovery
 	dhtServer, err := discovery.StartDHTNode(cfg.Discovery.BTDHTPort)
 	if err != nil {
-		fmt.Printf("⚠️  Warning: Could not start DHT node: %v\n", err)
-		fmt.Printf("   Local network discovery will still work\n")
+		logger.L().Warn("DHT node startup failed", "err", err)
 	}
 
 	// start multiple discovery services for max discoverability
@@ -171,24 +185,11 @@ func runCreate() error {
 	// get external IP for user display
 	externalAddr, err := discovery.GetExternalIP()
 	if err != nil {
-		fmt.Printf("⚠️  Warning: Could not determine external IP: %v\n", err)
+		logger.L().Warn("Could not determine external IP", "err", err)
 	}
 
-	fmt.Printf("🔐 QuantTerm E2E Encrypted Room Created\n")
-	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-	fmt.Printf("📱 Room ID: %s\n", roomID)
-	fmt.Printf("🔑 Your Identity Fingerprint: %s\n", fingerprint)
-	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-
-	if externalAddr != "" {
-		fmt.Printf("🌐 Global Address: %s\n", externalAddr)
-	}
-
-	fmt.Printf("🏠 Local Port: %d\n", quantApp.GetListenPort())
-	fmt.Printf("📡 Discovery Services: mDNS, Broadcast, DHT\n")
-	fmt.Printf("💡 Peers can join with just the Room ID (automatic discovery)\n")
-	fmt.Printf("⚠️  Verify fingerprints through a trusted channel\n")
-	fmt.Printf("⚡ Starting secure chat interface...\n\n")
+	logger.L().Info("Room created", "room_id", roomID, "fingerprint", fingerprint, "listen_port", quantApp.GetListenPort(), "external_addr", externalAddr)
+	logger.L().Info("Starting chat interface")
 
 	return quantApp.StartChatInterface(ctx)
 }
@@ -218,14 +219,12 @@ func runJoin(roomID, remoteAddr string) error {
 
 	// always use automatic discovery unless address is explicitly provided
 	if remoteAddr == "" {
-		fmt.Printf("🔍 Auto-discovering peer for room %s...\n", roomID[:8])
-		fmt.Printf("   - Trying: mDNS, Broadcast, DHT\n")
+		logger.L().Info("Auto-discovering peer", "room", roomID[:8])
 
 		// start dht node for discovery
 		dhtServer, err := discovery.StartDHTNode(cfg.Discovery.BTDHTPort)
 		if err != nil {
-			// not fatal, other discovery methods can still work
-			fmt.Printf("⚠️  Warning: Could not start DHT node: %v\n", err)
+			logger.L().Warn("Failed to start DHT node", "err", err)
 		}
 
 		// use fast automatic discovery
@@ -235,20 +234,13 @@ func runJoin(roomID, remoteAddr string) error {
 		}
 
 		remoteAddr = addr
-		fmt.Printf("✅ Found peer: %s\n", remoteAddr)
+		logger.L().Info("Peer found", "addr", remoteAddr)
 	} else {
-		// validate the provided address
-		fmt.Printf("🔗 Using manual address: %s\n", remoteAddr)
+		logger.L().Info("Using manual remote address", "addr", remoteAddr)
 	}
 
-	// show connection info
-	fmt.Printf("🔍 Joining E2E Encrypted Room: %s\n", roomID)
-	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-	fmt.Printf("🔑 Your Identity Fingerprint: %s\n", fingerprint)
-	fmt.Printf("📍 Connecting to: %s\n", remoteAddr)
-	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-	fmt.Printf("🔍 Initiating secure handshake...\n")
-	fmt.Printf("⚠️  Verify peer fingerprints before trusting messages\n\n")
+	logger.L().Info("Joining room", "room_id", roomID, "fingerprint", fingerprint, "remote_addr", remoteAddr)
+	logger.L().Info("Initiating secure handshake")
 
 	if err := quantApp.JoinRoom(ctx, roomID, remoteAddr); err != nil {
 		return fmt.Errorf("failed to join room: %w", err)

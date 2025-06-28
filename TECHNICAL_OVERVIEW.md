@@ -12,7 +12,8 @@
 6. [Lifecycle](#6-lifecycle)
 7. [Security Considerations](#7-security-considerations)
 8. [Build & Test](#8-build--test)
-9. [Future Work](#9-future-work)
+9. [Logging](#9-logging)
+10. [Future Work](#10-future-work)
 
 ---
 
@@ -149,7 +150,28 @@ go test ./...
 
 ---
 
-## 9. Future Work
+## 9. Logging
+
+The application keeps runtime noise at a minimum by **defaulting to silence**.  Back-end components send their structured logs to an in-memory `slog` logger that discards output unless explicitly enabled.
+
+**How to enable logging**
+
+```bash
+# JSON logs on stdout, INFO level
+quantterm create --log-level info
+
+# or via environment variable
+export QUANTTERM_LOG_LEVEL=debug
+quantterm join <RoomID>
+```
+
+Levels: `debug`, `info`, `warn`, `error` (case-insensitive).
+
+Internally a call to `logger.L()` returns the shared logger; subsystems never print directly to stdout/stderr.  The network transport also exposes an *error channel* so the UI can surface critical issues without enabling verbose logs.
+
+---
+
+## 10. Future Work
 
 * Improve DHT bootstrap reliability (e.g., multiple well-known bootstrap nodes).
 * Add support for group chats (e.g., using a protocol like MLS).
