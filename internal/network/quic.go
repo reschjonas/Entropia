@@ -468,6 +468,11 @@ func (qn *QuicNetwork) ForceKeyRotation() (bool, error) {
 	return rotated, aggErr
 }
 
+// IsListener returns true if the network is a listener (creator)
+func (qn *QuicNetwork) IsListener() bool {
+	return qn.isListener
+}
+
 // generateTLSConfig sets up a ephemeral, self-signed TLS config for the QUIC listener
 func generateTLSConfig() (*tls.Config, error) {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)

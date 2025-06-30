@@ -11,6 +11,8 @@ import (
 
 	"entropia/internal/config"
 	"entropia/internal/crypto"
+	"entropia/internal/discovery"
+	"entropia/internal/logger"
 	"entropia/internal/network"
 	"entropia/internal/room"
 	"entropia/internal/ui"
@@ -23,9 +25,9 @@ type Entropia struct {
 	currentRoom *room.Room
 
 	// core components
-	pqCrypto   *crypto.PQCrypto
-	network    network.Network
-	terminalUI *ui.TerminalUI
+	pqCrypto *crypto.PQCrypto
+	network  network.Network
+	gui      *ui.WebviewUI
 
 	// runtime state
 	isRunning  bool
@@ -64,162 +66,186 @@ func NewEntropia(cfg *config.Config) (*Entropia, error) {
 	}, nil
 }
 
+// StartGUILifecycle starts the new GUI-driven application flow
+func (e *Entropia) StartGUILifecycle(ctx context.Context) error {
+	e.gui = ui.NewWebviewUI(e)
+	return e.gui.Start(ctx)
+}
+
 // CreateRoom creates a new chat room and starts listening
-func (qt *Entropia) CreateRoom(ctx context.Context) (string, error) {
-	newRoom, err := room.NewRoom("Entropia E2E Chat", "Post-quantum encrypted chat room", qt.config.Network.MaxPeers, false)
+func (e *Entropia) CreateRoom(ctx context.Context) (string, error) {
+	newRoom, err := room.NewRoom("Entropia Chat", "Post-quantum encrypted chat room", e.config.Network.MaxPeers, false)
 	if err != nil {
 		return "", fmt.Errorf("failed to create room: %w", err)
 	}
 
-	qt.currentRoom = newRoom
+	e.currentRoom = newRoom
 
-	if err := qt.initializeComponents(ctx, true, ""); err != nil {
+	if err := e.initializeComponents(ctx, true, ""); err != nil {
 		return "", fmt.Errorf("failed to initialize components: %w", err)
 	}
 
-	if err := qt.startServices(ctx); err != nil {
+	if err := e.startServices(ctx); err != nil {
 		return "", fmt.Errorf("failed to start services: %w", err)
 	}
+
+	// start background handlers now that room exists
+	go e.handleMessages(ctx)
+	go e.handlePeerEvents(ctx)
+	go e.handleSecurityEvents(ctx)
+	go e.handleNetworkErrors(ctx)
 
 	return newRoom.ID, nil
 }
 
 // JoinRoom joins an existing chat room
-func (qt *Entropia) JoinRoom(ctx context.Context, roomID string, remoteAddr string) error {
+func (e *Entropia) JoinRoom(ctx context.Context, roomID string, remoteAddr string) error {
 	if !room.ValidateRoomID(roomID) {
 		return fmt.Errorf("invalid room ID format")
 	}
 
-	qt.currentRoom = &room.Room{
-		ID:       roomID,
-		Name:     "Entropia E2E Chat",
-		MaxPeers: qt.config.Network.MaxPeers,
+	// If remote address is not provided, start auto-discovery
+	if remoteAddr == "" {
+		logger.L().Info("Auto-discovering peer", "room", roomID)
+		dhtServer, err := discovery.StartDHTNode(e.config.Discovery.BTDHTPort)
+		if err != nil {
+			logger.L().Warn("Failed to start DHT node for discovery", "err", err)
+		}
+		addr, err := discovery.AutoDiscovery(ctx, roomID, dhtServer)
+		if err != nil {
+			return fmt.Errorf("auto-discovery failed: %w", err)
+		}
+		remoteAddr = addr
+		logger.L().Info("Peer found via auto-discovery", "addr", remoteAddr)
 	}
 
-	// joiner connects to the room creator
-	if err := qt.initializeComponents(ctx, false, remoteAddr); err != nil {
+	e.currentRoom = &room.Room{
+		ID:       roomID,
+		Name:     "Entropia E2E Chat",
+		MaxPeers: e.config.Network.MaxPeers,
+	}
+
+	if err := e.initializeComponents(ctx, false, remoteAddr); err != nil {
 		return fmt.Errorf("failed to initialize components: %w", err)
 	}
 
-	if err := qt.startServices(ctx); err != nil {
+	if err := e.startServices(ctx); err != nil {
 		return fmt.Errorf("failed to start services: %w", err)
 	}
+
+	go e.handleMessages(ctx)
+	go e.handlePeerEvents(ctx)
+	go e.handleSecurityEvents(ctx)
+	go e.handleNetworkErrors(ctx)
 
 	return nil
 }
 
-// StartChatInterface starts the terminal UI and message handling
-func (qt *Entropia) StartChatInterface(ctx context.Context) error {
-	// start background handlers
-	go qt.handleMessages(ctx)
-	go qt.handlePeerEvents(ctx)
-	go qt.handleSecurityEvents(ctx)
-	go qt.handleNetworkErrors(ctx)
-
-	// start the UI (this blocks until quit)
-	return qt.terminalUI.Start(ctx)
-}
-
 // Close shuts down the application
-func (qt *Entropia) Close() {
-	if !qt.isRunning {
+func (e *Entropia) Close() {
+	if !e.isRunning {
 		return
 	}
 
-	qt.isRunning = false
-	close(qt.stopChan)
+	e.isRunning = false
+	close(e.stopChan)
 
-	if qt.terminalUI != nil {
-		qt.terminalUI.Stop()
+	if e.gui != nil {
+		e.gui.Stop()
 	}
 
-	if qt.network != nil {
-		qt.network.Stop()
+	if e.network != nil {
+		e.network.Stop()
 	}
 }
 
 // initialize all the components we need
-func (qt *Entropia) initializeComponents(ctx context.Context, isListener bool, remoteAddr string) error {
+func (e *Entropia) initializeComponents(ctx context.Context, isListener bool, remoteAddr string) error {
 	var err error
 
-	qt.network, err = network.NewNetwork(
+	e.network, err = network.NewNetwork(
 		ctx,
-		qt.peerID,
-		qt.currentRoom.ID,
-		qt.listenPort,
-		qt.pqCrypto,
+		e.peerID,
+		e.currentRoom.ID,
+		e.listenPort,
+		e.pqCrypto,
 		isListener,
 		remoteAddr,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to initialize network transport: %w", err)
 	}
-
-	qt.terminalUI = ui.NewTerminalUI(qt.currentRoom.ID, qt.config.UI.MaxMessageHistory)
-
 	return nil
 }
 
 // start up networking and discovery
-func (qt *Entropia) startServices(ctx context.Context) error {
-	qt.isRunning = true
+func (e *Entropia) startServices(ctx context.Context) error {
+	e.isRunning = true
 
-	if err := qt.network.Start(ctx); err != nil {
+	if err := e.network.Start(ctx); err != nil {
 		return fmt.Errorf("failed to start network transport: %w", err)
+	}
+
+	// If we are the creator, we need to start discovery services
+	if e.network.IsListener() {
+		roomID := e.currentRoom.ID
+		listenPort := e.listenPort
+		dhtServer, err := discovery.StartDHTNode(e.config.Discovery.BTDHTPort)
+		if err != nil {
+			logger.L().Warn("DHT node startup failed", "err", err)
+		}
+
+		go discovery.Advertise(ctx, roomID, listenPort)
+		go discovery.StartDiscoveryResponder(ctx, roomID, listenPort)
+		if dhtServer != nil {
+			go discovery.AnnounceDHT(ctx, dhtServer, roomID, listenPort)
+		}
 	}
 
 	return nil
 }
 
-// handle sending and receiving encrypted messages
-func (qt *Entropia) handleMessages(ctx context.Context) {
-	sendChan := qt.terminalUI.GetSendChannel()
-	receiveChan := qt.network.GetIncomingMessages()
-
+// handle receiving encrypted messages
+func (e *Entropia) handleMessages(ctx context.Context) {
+	receiveChan := e.network.GetIncomingMessages()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-qt.stopChan:
+		case <-e.stopChan:
 			return
-		case message := <-sendChan:
-			// send encrypted message to verified peers
-			if err := qt.network.SendMessage(ctx, message); err != nil {
-				qt.terminalUI.AddSystemMessage(fmt.Sprintf("❌ Failed to send E2E encrypted message: %v", err))
-			}
 		case receivedMsg := <-receiveChan:
 			// show the verified message in UI
-			qt.terminalUI.HandleReceivedMessage(receivedMsg)
+			if e.gui != nil {
+				e.gui.AddMessage(receivedMsg.SenderID, receivedMsg.Message, receivedMsg.Timestamp, false, true)
+			}
 		}
 	}
 }
 
 // handle peer connection events
-func (qt *Entropia) handlePeerEvents(ctx context.Context) {
-	ticker := time.NewTicker(5 * time.Second)
+func (e *Entropia) handlePeerEvents(ctx context.Context) {
+	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-qt.stopChan:
+		case <-e.stopChan:
 			return
 		case <-ticker.C:
-			// update peer status in the UI
-			connectedPeers := qt.network.GetConnectedPeers()
-			verifiedPeers := qt.pqCrypto.GetVerifiedPeers()
-
-			qt.terminalUI.UpdatePeersString(connectedPeers)
-			qt.terminalUI.UpdateVerifiedPeerCount(len(verifiedPeers))
+			if e.gui != nil {
+				e.gui.PushFullStateUpdate()
+			}
 		}
 	}
 }
 
 // handle security events and fingerprint displays
-func (qt *Entropia) handleSecurityEvents(ctx context.Context) {
+func (e *Entropia) handleSecurityEvents(ctx context.Context) {
 	fingerprintTicker := time.NewTicker(60 * time.Second)
-	keyRotationCheckTicker := time.NewTicker(1 * time.Minute) // check every minute
+	keyRotationCheckTicker := time.NewTicker(1 * time.Minute)
 	defer fingerprintTicker.Stop()
 	defer keyRotationCheckTicker.Stop()
 
@@ -229,47 +255,47 @@ func (qt *Entropia) handleSecurityEvents(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-qt.stopChan:
+		case <-e.stopChan:
 			return
 		case <-fingerprintTicker.C:
-			// show peer fingerprints for verification
-			currentFingerprints := qt.getPeerFingerprints()
-
-			// only show if something changed
+			currentFingerprints := e.getPeerFingerprints()
 			if !equalStringMaps(lastShownFingerprints, currentFingerprints) && len(currentFingerprints) > 0 {
-				qt.terminalUI.ShowPeerFingerprints(currentFingerprints)
+				if e.gui != nil {
+					e.gui.ShowPeerFingerprints(currentFingerprints)
+				}
 				lastShownFingerprints = currentFingerprints
 			}
 
 		case <-keyRotationCheckTicker.C:
-			// attempt key rotation for forward secrecy
-			if qt.network == nil {
+			if e.network == nil {
 				continue
 			}
-
-			rotated, err := qt.network.ForceKeyRotation()
+			rotated, err := e.network.ForceKeyRotation()
 			if err != nil {
-				qt.terminalUI.AddSecurityMessage(fmt.Sprintf("❌ Key rotation error: %v", err))
+				if e.gui != nil {
+					e.gui.AddSecurityMessage(fmt.Sprintf("Key rotation error: %v", err))
+				}
 				continue
 			}
-			if rotated {
-				qt.terminalUI.ShowKeyRotationEvent()
+			if rotated && e.gui != nil {
+				e.gui.AddSecurityMessage("Forward secrecy: Keys rotated, re-establishing secure channels.")
 			}
 		}
 	}
 }
 
 // get fingerprints for all known peers
-func (qt *Entropia) getPeerFingerprints() map[string]string {
+func (e *Entropia) getPeerFingerprints() map[string]string {
 	fingerprints := make(map[string]string)
-
-	verifiedPeers := qt.pqCrypto.GetVerifiedPeers()
+	if e.pqCrypto == nil {
+		return fingerprints
+	}
+	verifiedPeers := e.pqCrypto.GetVerifiedPeers()
 	for _, peerID := range verifiedPeers {
-		if fingerprint, err := qt.pqCrypto.GetPeerFingerprint(peerID); err == nil {
+		if fingerprint, err := e.pqCrypto.GetPeerFingerprint(peerID); err == nil {
 			fingerprints[peerID] = fingerprint
 		}
 	}
-
 	return fingerprints
 }
 
@@ -278,13 +304,11 @@ func equalStringMaps(a, b map[string]string) bool {
 	if len(a) != len(b) {
 		return false
 	}
-
 	for k, v := range a {
 		if b[k] != v {
 			return false
 		}
 	}
-
 	return true
 }
 
@@ -294,37 +318,28 @@ func generatePeerID() (string, error) {
 	if _, err := rand.Read(bytes); err != nil {
 		return "", err
 	}
-
 	return hex.EncodeToString(bytes), nil
 }
 
-// findAvailablePort iterates through a shuffled range of ports and returns the first one that is available on both TCP and UDP.
+// findAvailablePort iterates and returns an available port.
 func findAvailablePort(minPort, maxPort int) (int, error) {
 	ports := make([]int, 0, maxPort-minPort+1)
 	for i := minPort; i <= maxPort; i++ {
 		ports = append(ports, i)
 	}
-
-	// shuffle ports to reduce collisions when running multiple instances
-	mathrand.Seed(time.Now().UnixNano())
 	mathrand.Shuffle(len(ports), func(i, j int) {
 		ports[i], ports[j] = ports[j], ports[i]
 	})
-
 	for _, port := range ports {
 		if isPortAvailable(port) {
 			return port, nil
 		}
 	}
-
 	return 0, fmt.Errorf("no available port found in range %d-%d", minPort, maxPort)
 }
 
-// isPortAvailable checks if a port is available on both TCP and UDP.
 func isPortAvailable(port int) bool {
 	addr := fmt.Sprintf(":%d", port)
-
-	// check UDP
 	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		return false
@@ -334,8 +349,6 @@ func isPortAvailable(port int) bool {
 		return false
 	}
 	defer udpConn.Close()
-
-	// check TCP
 	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
 		return false
@@ -345,63 +358,59 @@ func isPortAvailable(port int) bool {
 		return false
 	}
 	defer tcpListener.Close()
-
 	return true
 }
 
+// --- AppController interface methods ---
+
+// SendMessage sends a message over the network.
+func (e *Entropia) SendMessage(ctx context.Context, message string) error {
+	if e.network == nil {
+		return fmt.Errorf("not connected to a room")
+	}
+	return e.network.SendMessage(ctx, message)
+}
+
 // GetPeerFingerprint returns our cryptographic fingerprint
-func (qt *Entropia) GetPeerFingerprint() (string, error) {
-	return qt.pqCrypto.GetIdentityFingerprint()
+func (e *Entropia) GetPeerFingerprint() (string, error) {
+	if e.pqCrypto == nil {
+		return "", fmt.Errorf("crypto not initialized")
+	}
+	return e.pqCrypto.GetIdentityFingerprint()
 }
 
 // GetRoomInfo returns info about the current room
-func (qt *Entropia) GetRoomInfo() *room.Room {
-	return qt.currentRoom
+func (e *Entropia) GetRoomInfo() *room.Room {
+	return e.currentRoom
 }
 
 // GetListenPort returns the port we're listening on
-func (qt *Entropia) GetListenPort() int {
-	return qt.listenPort
-}
-
-// GetConnectedPeerCount returns how many peers are connected
-func (qt *Entropia) GetConnectedPeerCount() int {
-	if qt.network == nil {
-		return 0
-	}
-	return len(qt.network.GetConnectedPeers())
-}
-
-// GetVerifiedPeerCount returns how many peers are verified
-func (qt *Entropia) GetVerifiedPeerCount() int {
-	if qt.pqCrypto == nil {
-		return 0
-	}
-	return len(qt.pqCrypto.GetVerifiedPeers())
+func (e *Entropia) GetListenPort() int {
+	return e.listenPort
 }
 
 // GetNetworkStatus returns current network and encryption status
-func (qt *Entropia) GetNetworkStatus() map[string]interface{} {
+func (e *Entropia) GetNetworkStatus() map[string]interface{} {
 	status := map[string]interface{}{
-		"peer_id":         qt.peerID,
-		"listen_port":     qt.listenPort,
+		"peer_id":         e.peerID,
+		"listen_port":     e.listenPort,
 		"room_id":         "",
 		"connected_peers": 0,
 		"verified_peers":  0,
 		"e2e_encryption":  false,
-		"is_running":      qt.isRunning,
+		"is_running":      e.isRunning,
 	}
 
-	if qt.currentRoom != nil {
-		status["room_id"] = qt.currentRoom.ID
+	if e.currentRoom != nil {
+		status["room_id"] = e.currentRoom.ID
 	}
 
-	if qt.network != nil {
-		status["connected_peers"] = len(qt.network.GetConnectedPeers())
+	if e.network != nil {
+		status["connected_peers"] = len(e.network.GetConnectedPeers())
 	}
 
-	if qt.pqCrypto != nil {
-		verifiedPeers := len(qt.pqCrypto.GetVerifiedPeers())
+	if e.pqCrypto != nil {
+		verifiedPeers := len(e.pqCrypto.GetVerifiedPeers())
 		status["verified_peers"] = verifiedPeers
 		status["e2e_encryption"] = verifiedPeers > 0
 	}
@@ -410,58 +419,49 @@ func (qt *Entropia) GetNetworkStatus() map[string]interface{} {
 }
 
 // GetSecuritySummary returns a summary of our security features
-func (qt *Entropia) GetSecuritySummary() map[string]interface{} {
+func (e *Entropia) GetSecuritySummary() map[string]interface{} {
 	summary := map[string]interface{}{
 		"encryption_algorithms": map[string]string{
 			"key_exchange": "CRYSTALS-Kyber-1024",
 			"signatures":   "CRYSTALS-DILITHIUM-5",
 			"symmetric":    "ChaCha20-Poly1305",
 		},
-		"security_features": []string{
-			"Post-quantum cryptography",
-			"Perfect forward secrecy",
-			"Message authentication",
-			"Peer verification",
-			"Key rotation",
-		},
-		"threat_resistance": []string{
-			"Quantum computer attacks",
-			"Man-in-the-middle attacks",
-			"Message tampering",
-			"Replay attacks",
-			"Passive eavesdropping",
-		},
 	}
-
-	if qt.pqCrypto != nil {
-		if fingerprint, err := qt.pqCrypto.GetIdentityFingerprint(); err == nil {
+	if e.pqCrypto != nil {
+		if fingerprint, err := e.pqCrypto.GetIdentityFingerprint(); err == nil {
 			summary["identity_fingerprint"] = fingerprint
 		}
 	}
-
 	return summary
 }
 
 // handleNetworkErrors listens for async errors from the transport layer
-func (qt *Entropia) handleNetworkErrors(ctx context.Context) {
-	if qt.network == nil {
+func (e *Entropia) handleNetworkErrors(ctx context.Context) {
+	if e.network == nil {
 		return
 	}
-
-	errChan := qt.network.GetErrorChannel()
+	errChan := e.network.GetErrorChannel()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-qt.stopChan:
+		case <-e.stopChan:
 			return
 		case err := <-errChan:
 			if err == nil {
 				continue
 			}
-			if qt.terminalUI != nil {
-				qt.terminalUI.AddSystemMessage(fmt.Sprintf("⚠️  Network error: %v", err))
+			if e.gui != nil {
+				e.gui.AddNetworkError(err)
 			}
 		}
 	}
+}
+
+// IsListener returns true if the network is in listening mode
+func (e *Entropia) IsListener() bool {
+	if e.network == nil {
+		return false
+	}
+	return e.network.IsListener()
 }

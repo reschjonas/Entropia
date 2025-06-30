@@ -8,7 +8,7 @@
 2. [Crypto Layer](#2-crypto-layer-internalcrypto)
 3. [Transport Layer](#3-transport-layer-internalnetwork)
 4. [Discovery Layer](#4-discovery-layer-internaldiscovery)
-5. [Terminal UI](#5-terminal-ui-internalui)
+5. [Graphical UI](#5-graphical-ui-internalui)
 6. [Lifecycle](#6-lifecycle)
 7. [Security Considerations](#7-security-considerations)
 8. [Build & Test](#8-build--test)
@@ -21,27 +21,26 @@
 
 ```mermaid
 flowchart TD
-    subgraph CLI
-        A1[entropia create] ---|starts| APP
-        A2[entropia join] ---|starts| APP
+    subgraph User
+        A1["Launch App"]
     end
 
     subgraph APP[internal/app]
-        direction TB
-        B1["Room management<br/>(generate & validate IDs)"]
-        B2["PQCrypto<br/>(post-quantum layer)"]
-        B3["Network<br/>(QUIC transport)"]
-        B4["Discovery<br/>(mDNS / Broadcast / DHT)"]
-        B5["Terminal UI"]
+        B0["Webview GUI"]
+        B1["Room Management"]
+        B2["PQCrypto"]
+        B3["Network (QUIC)"]
+        B4["Discovery (mDNS/DHT)"]
     end
 
-    A1 --> APP
-    A2 --> APP
-    B5 -- user messages --> B3
-    B3 -- encrypted payloads --> B5
-    B3 -- announcements / handshakes --> B2
-    B2 -- encryption keys --> B3
-    B4 --- B3
+    A1 --> B0
+    B0 -- Create/Join --> B1
+    B1 -- starts --> B3
+    B0 -- user messages --> B3
+    B3 -- encrypted payloads --> B0
+    B3 -- handshakes --> B2
+    B2 -- keys --> B3
+    B4 -- finds peers --> B3
 ```
 
 *(If the diagram does not render on GitHub, paste it into https://mermaid.live to view.)*
@@ -58,7 +57,7 @@ flowchart TD
 
 ### 2.1 Identity keys
 
-Created at start-up once per session.  They are long-term *public* keys that are
+Created at start-up once per session. They are long-term *public* keys that are
 included in every peer-announcement and are **signed** with Dilithium.
 
 ### 2.2 Handshake flow
@@ -67,7 +66,7 @@ included in every peer-announcement and are **signed** with Dilithium.
    • Identity Kyber **&** Dilithium public keys  
    • **SHA-256 fingerprint of the self-signed QUIC certificate**  
    – All fields are signed with Dilithium.
-2. **Key Exchange** – The initiator encapsulates to the peer's **most recent Kyber *ephemeral*** key (falls back to identity key on first contact).  The responder decapsulates with *either* its identity **or** current ephemeral private key.
+2. **Key Exchange** – The initiator encapsulates to the peer's **most recent Kyber *ephemeral*** key (falls back to identity key on first contact). The responder decapsulates with *either* its identity **or** current ephemeral private key.
 3. Both sides feed the shared secret into HKDF **together with a fresh 32-byte salt** (carried in every ciphertext header) to derive a 32-byte session key for
    **XChaCha20-Poly1305**.
 4. Keys rotate every 15 minutes; the previous secret is kept for a short grace period to decrypt late packets.
@@ -107,27 +106,33 @@ The listener also learns its own public IP with STUN (`stun.l.google.com:19302`)
 
 ---
 
-## 5. Terminal UI (`internal/ui`)
+## 5. Graphical UI (`internal/ui`)
 
-A single Go file implements a minimal TUI:
+The application uses a single-page web interface powered by `webview`.
 
-* Displays system, security and chat messages.
-* Blocks user input until at least **one verified peer** is present.
-* Shows live peer count and E2E status.
-* Surfaces identity fingerprints every 60 s for manual verification.
+*   **Single Binary:** All HTML, CSS, and JS are embedded into the Go binary.
+*   **Structure:** A sidebar provides navigation between Connect, Chat, and Settings views.
+*   **State Management:** The Go backend pushes state updates (e.g., connection status, peer info) to the JavaScript frontend.
+*   **Functionality:**
+    *   Create or join rooms.
+    *   Display system, security and chat messages.
+    *   Shows live peer count and E2E encryption status.
+    *   Displays identity fingerprints for manual out-of-band verification.
 
 ---
 
 ## 6. Lifecycle
 
 1. **Creator**
-   1. Generates a room ID & starts a QUIC listener on a UDP port.
-   2. Advertises via discovery layer.
-   3. Waits for an incoming QUIC connection; sends its own announcement once a peer connects.
+   1. User clicks "Create Room" in the GUI.
+   2. The app generates a room ID & starts a QUIC listener on a UDP port.
+   3. It advertises its presence via the discovery layer.
+   4. It waits for an incoming QUIC connection and sends its peer announcement.
 2. **Joiner**
-   1. Resolves the creator's address via discovery (or manual CLI arg).
-   2. Dials the peer's QUIC address; immediately sends its announcement over a new stream.
-   3. Performs key exchange once creator's announcement is verified.
+   1. User enters a Room ID and clicks "Join".
+   2. The app resolves the creator's address via discovery (or uses the manual address if provided).
+   3. It dials the peer's QUIC address and sends its peer announcement.
+   4. It performs a key exchange once the creator's announcement is verified.
 3. **Chatting** – Both sides encrypt/sign every message and verify/decrypt on receipt.
 4. **Rotation** – After 15 min, new Kyber ephemerals are generated and exchanged.
 
@@ -156,22 +161,18 @@ go test ./...
 
 ## 9. Logging
 
-The application keeps runtime noise at a minimum by **defaulting to silence**.  Back-end components send their structured logs to an in-memory `slog` logger that discards output unless explicitly enabled.
+The application keeps runtime noise at a minimum by **defaulting to silence**. Back-end components send their structured logs to an in-memory `slog` logger that discards output unless explicitly enabled.
 
 **How to enable logging**
 
 ```bash
-# JSON logs on stdout, INFO level
-entropia create --log-level info
-
-# or via environment variable
-export ENTROPIA_LOG_LEVEL=debug
-entropia join <RoomID>
+# JSON logs on stdout, INFO level for the GUI app
+entropia --log-level info
 ```
 
 Levels: `debug`, `info`, `warn`, `error` (case-insensitive).
 
-Internally a call to `logger.L()` returns the shared logger; subsystems never print directly to stdout/stderr.  The network transport also exposes an *error channel* so the UI can surface critical issues without enabling verbose logs.
+Internally a call to `logger.L()` returns the shared logger; subsystems never print directly to stdout/stderr. The network transport also exposes an *error channel* so the UI can surface critical issues without enabling verbose logs.
 
 ---
 
@@ -181,4 +182,4 @@ Internally a call to `logger.L()` returns the shared logger; subsystems never pr
 * Add support for group chats (e.g., using a protocol like MLS).
 * Add optional persistence for chat history.
 * Formal security audit.
-* Create a graphical user interface (GUI). 
+* Add file transfer capabilities. 

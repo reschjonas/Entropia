@@ -83,8 +83,6 @@ func LookupDHT(ctx context.Context, server *dht.Server, roomID string, timeout t
 
 // getInfoHash converts a roomID into a torrent.InfoHash.
 func getInfoHash(roomID string) torrent.InfoHash {
-	// Using the existing InfoHash function from the room package
-	// is fine, but we need to convert it to the right type.
 	// For simplicity here, we'll just hash it directly.
 	h := sha256.Sum256([]byte(roomID))
 	var ih torrent.InfoHash

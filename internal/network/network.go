@@ -30,6 +30,9 @@ type Network interface {
 
 	// get the channel where the transport reports asynchronous errors
 	GetErrorChannel() <-chan error
+
+	// IsListener returns true if the network is a listener (creator)
+	IsListener() bool
 }
 
 // NewNetwork returns a QUIC-based transport.

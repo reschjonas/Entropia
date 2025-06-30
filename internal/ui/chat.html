@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Ensure proper scaling & responsive behaviour on all devices -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entropia</title>
+    <style>
+        :root {
+            --bg-darker: #121212;
+            --bg-dark: #1e1e1e;
+            --bg-light: #2a2a2a;
+            --bg-lighter: #333333;
+            --border-color: #3a3a3a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --primary-blue: #0095ff;
+            --green: #4caf50;
+            --red: #f44336;
+            --orange: #ff9800;
+            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: var(--font-main);
+            background-color: var(--bg-darker);
+            color: var(--text-primary);
+        }
+
+        #app-container {
+            display: flex;
+            height: 100%;
+        }
+
+        /* Sidebar */
+        #sidebar {
+            width: 240px;
+            background-color: var(--bg-dark);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        #sidebar h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #0095ff 0%, #3a7bfd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 2rem;
+        }
+        .nav-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            flex-grow: 1;
+        }
+        .nav-item a {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-bottom: 10px;
+            transition: all 0.2s ease;
+        }
+        .nav-item a:hover {
+            background-color: var(--bg-light);
+            color: var(--text-primary);
+        }
+        .nav-item a.active {
+            background-color: var(--primary-blue);
+            color: white;
+            font-weight: 600;
+        }
+        .nav-icon {
+            margin-right: 15px;
+            font-size: 1.2em;
+        }
+        
+        #status-indicator {
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.9em;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        #status-indicator.secure { background-color: rgba(76, 175, 80, 0.2); color: var(--green); }
+        #status-indicator.connecting { background-color: rgba(255, 152, 0, 0.2); color: var(--orange); }
+        #status-indicator.disconnected { background-color: rgba(244, 67, 54, 0.2); color: var(--red); }
+
+        /* Main Content */
+        #main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .view {
+            display: none;
+            height: 100%;
+            flex-direction: column;
+        }
+        .view.active {
+            display: flex;
+        }
+
+        /* Shared View Styles */
+        .view-header {
+            padding: 20px 25px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-dark);
+        }
+        .view-header h2 { margin: 0; font-size: 1.4rem; }
+        .view-content {
+            flex-grow: 1;
+            padding: 25px;
+            overflow-y: auto;
+        }
+
+        /* Connect View */
+        #connect-view .action-card {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+        }
+        #connect-view h3 { margin-top: 0; }
+        #connect-view input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 14px 18px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: #2c2c2c;
+            color: var(--text-primary);
+            outline: none;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+        .btn {
+            width: 100%;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            background: var(--primary-blue);
+            color: white;
+        }
+        #connection-status-message {
+            margin-top: 1rem;
+            min-height: 1.2em;
+        }
+
+        /* Chat View */
+        #chat-view {
+            background-color: var(--bg-darker);
+        }
+        #chat-view-content {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        #messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        #message-list {
+            list-style-type: none;
+            padding: 0; margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .message { display: flex; max-width: 75%; word-wrap: break-word; }
+        .message-content { padding: 10px 15px; border-radius: 18px; line-height: 1.5; }
+        .message.local { align-self: flex-end; }
+        .message.local .message-content { background-color: var(--primary-blue); color: white; border-bottom-right-radius: 4px; }
+        .message.remote { align-self: flex-start; flex-direction: column; }
+        .message.remote .message-content { background-color: var(--bg-light); border-bottom-left-radius: 4px; }
+        .sender { font-weight: bold; font-size: 0.8em; margin-bottom: 5px; color: var(--primary-blue); margin-left: 5px; }
+        .system-message { text-align: center; color: var(--text-secondary); font-size: 0.85em; margin: 10px 0; }
+        .security-message { background-color: rgba(76, 175, 80, 0.2); color: var(--green); padding: 5px 15px; border-radius: 15px; display: inline-block; }
+        .fingerprint-notice { padding: 15px; background-color: rgba(0, 149, 255, 0.1); border-radius: 8px; margin: 10px auto; font-size: 0.9em; font-family: var(--font-mono); }
+        
+        #form {
+            display: flex; padding: 20px; background: var(--bg-dark); border-top: 1px solid var(--border-color); gap: 15px;
+        }
+        #input {
+            flex-grow: 1; padding: 12px 20px; border-radius: 20px; border: 1px solid var(--border-color);
+            background-color: var(--bg-darker); color: var(--text-primary); outline: none; font-size: 1rem;
+        }
+        #input:disabled { background-color: var(--bg-light); cursor: not-allowed; }
+        #send-btn { background: var(--primary-blue); color: white; border: none; padding: 0 25px; border-radius: 20px; cursor: pointer; }
+        #send-btn:disabled { background: var(--bg-lighter); color: var(--text-secondary); cursor: not-allowed; }
+
+        /* Settings View */
+        #settings-view .info-box {
+            background: var(--bg-dark);
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+        }
+        #settings-view h3 { margin-top: 0; color: var(--primary-blue); }
+        #settings-view p, #settings-view li { color: var(--text-secondary); }
+        #settings-view code { background-color: var(--bg-lighter); padding: 2px 5px; border-radius: 4px; font-family: var(--font-mono); }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <aside id="sidebar">
+        <h1>🛡️ Entropia</h1>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a href="#connect" id="nav-connect" onclick="showView('connect')" class="active">
+                    <span class="nav-icon">🔌</span> Connect
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#chat" id="nav-chat" onclick="showView('chat')">
+                    <span class="nav-icon">💬</span> Chat
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#settings" id="nav-settings" onclick="showView('settings')">
+                    <span class="nav-icon">⚙️</span> Settings
+                </a>
+            </li>
+        </ul>
+        <div id="status-indicator" class="disconnected">
+            Disconnected
+        </div>
+    </aside>
+
+    <main id="main-content">
+        <!-- Connect View -->
+        <section id="connect-view" class="view active">
+            <div class="view-header"><h2>Connect to a Room</h2></div>
+            <div class="view-content">
+                <div class="action-card">
+                    <h3>Create New Room</h3>
+                    <button class="btn" onclick="handleCreate()">Create & Start Listening</button>
+                </div>
+                <div class="action-card">
+                    <h3>Join Existing Room</h3>
+                    <input id="room-id-input" type="text" placeholder="Enter Room ID...">
+                    <input id="remote-addr-input" type="text" placeholder="Remote Address (optional, for LAN)">
+                    <button class="btn" onclick="handleJoin(document.getElementById('room-id-input').value.trim(), document.getElementById('remote-addr-input').value.trim())">Join Room</button>
+                </div>
+                <div id="connection-status-message" class="system-message"></div>
+            </div>
+        </section>
+
+        <!-- Chat View -->
+        <section id="chat-view" class="view">
+            <div class="view-header">
+                <h2 id="chat-header">Chat</h2>
+            </div>
+            <div id="chat-view-content">
+                <div id="messages">
+                    <ul id="message-list">
+                        <li class="system-message">Welcome to Entropia. Create or join a room to begin.</li>
+                    </ul>
+                </div>
+                <form id="form" onsubmit="handleFormSubmit(); return false;">
+                    <input id="input" autocomplete="off" placeholder="Waiting for secure connection..." disabled/>
+                    <button id="send-btn" type="submit" disabled>Send</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Settings View -->
+        <section id="settings-view" class="view">
+            <div class="view-header"><h2>Security & Application Info</h2></div>
+            <div class="view-content">
+                <div class="info-box">
+                    <h3>Your Identity Fingerprint</h3>
+                    <p>Share this with your peer to verify your identity. This fingerprint is unique to your current session.</p>
+                    <code id="identity-fingerprint">Not yet generated.</code>
+                </div>
+                <div class="info-box">
+                    <h3>Post-Quantum Cryptography</h3>
+                    <ul>
+                        <li><strong>Key Exchange:</strong> <code id="kem-algo">...</code></li>
+                        <li><strong>Signatures:</strong> <code id="sig-algo">...</code></li>
+                        <li><strong>Symmetric Encryption:</strong> <code id="sym-algo">...</code></li>
+                    </ul>
+                </div>
+                 <div class="info-box">
+                    <h3>Room Information</h3>
+                    <p><strong>Room ID:</strong> <code id="room-id-display">N/A</code> <button id="copy-btn" title="Copy Room ID" style="display:none;">📋</button></p>
+                    <p><strong>Listening On:</strong> <code id="listen-port-display">N/A</code></p>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script type="text/javascript">
+    // --- DOM Elements ---
+    const views = document.querySelectorAll('.view');
+    const navLinks = document.querySelectorAll('.nav-item a');
+    const statusIndicator = document.getElementById('status-indicator');
+    
+    const chatInput = document.getElementById('input');
+    const sendBtn = document.getElementById('send-btn');
+    const messageList = document.getElementById('message-list');
+    
+    const roomIdInput = document.getElementById('room-id-input');
+    const remoteAddrInput = document.getElementById('remote-addr-input');
+    const connectionStatusDiv = document.getElementById('connection-status-message');
+    
+    const identityFingerprintElem = document.getElementById('identity-fingerprint');
+    const roomIdDisplay = document.getElementById('room-id-display');
+    const copyBtn = document.getElementById('copy-btn');
+    const listenPortDisplay = document.getElementById('listen-port-display');
+    const kemAlgoElem = document.getElementById('kem-algo');
+    const sigAlgoElem = document.getElementById('sig-algo');
+    const symAlgoElem = document.getElementById('sym-algo');
+
+    let fullRoomId = '';
+
+    // --- Core UI Logic ---
+    function showView(viewId) {
+        views.forEach(view => view.classList.remove('active'));
+        document.getElementById(`${viewId}-view`).classList.add('active');
+        navLinks.forEach(link => link.classList.remove('active'));
+        document.getElementById(`nav-${viewId}`).classList.add('active');
+    }
+
+    function handleFormSubmit() {
+        if (chatInput.value && !chatInput.disabled) {
+            sendMessage(chatInput.value);
+            chatInput.value = '';
+        }
+    }
+
+    // --- Functions called from Go ---
+    // Note: window.uiReady is bound in Go and called when the Go backend is ready
+    function setConnectionStatus(message, isError = false) {
+        connectionStatusDiv.textContent = message;
+        connectionStatusDiv.style.color = isError ? 'var(--red)' : 'var(--text-secondary)';
+    }
+
+    function addMessage(sender, message, isLocal, verified) {
+        const item = document.createElement('li');
+        item.className = 'message ' + (isLocal ? 'local' : 'remote');
+
+        let senderHTML = '';
+        if (!isLocal) {
+            const shortSender = sender.length > 8 ? sender.substring(0, 8) + '...' : sender;
+            const verificationIcon = verified ? ` <span style="color:var(--green)">(verified)</span>` : ` <span style="color:var(--orange)">(unverified)</span>`;
+            senderHTML = `<div class="sender">${shortSender}${verificationIcon}</div>`;
+        }
+        
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content';
+        messageContent.textContent = message;
+        
+        item.innerHTML = senderHTML; // senderHTML will be empty for local messages
+        item.appendChild(messageContent);
+
+        messageList.appendChild(item);
+        messageList.parentElement.scrollTop = messageList.parentElement.scrollHeight;
+    }
+    
+    function addSystemMessage(text, type = 'system') {
+        const item = document.createElement('li');
+        item.className = 'system-message';
+        const inner = document.createElement('div');
+        
+        if (type === 'security') {
+            inner.className = 'security-message';
+            inner.textContent = `🛡️ ${text}`;
+        } else if (type === 'error') {
+            inner.style.color = 'var(--red)';
+            inner.textContent = `⚠️ ${text}`;
+        } else {
+            inner.textContent = `🔧 ${text}`;
+        }
+        
+        item.appendChild(inner);
+        messageList.appendChild(item);
+        messageList.parentElement.scrollTop = messageList.parentElement.scrollHeight;
+    }
+
+    function showPeerFingerprints(fingerprints) {
+        const item = document.createElement('li');
+        item.className = 'system-message';
+        let html = '<div class="fingerprint-notice"><strong>Peer Verification Fingerprints:</strong><br>';
+        for (const peerID in fingerprints) {
+            const shortID = peerID.length > 8 ? peerID.substring(0, 8) + '...' : peerID;
+            html += `👤 ${shortID}: ${fingerprints[peerID]}<br>`;
+        }
+        html += '<small>Verify these with your peer through a trusted channel.</small></div>';
+        item.innerHTML = html;
+        messageList.appendChild(item);
+    }
+    
+    function updateStatus(peers, verifiedPeers) {
+        if (verifiedPeers > 0) {
+            statusIndicator.className = 'secure';
+            statusIndicator.textContent = 'Secure';
+            enableChatInput();
+        } else if (peers > 0) {
+            statusIndicator.className = 'connecting';
+            statusIndicator.textContent = 'Handshaking...';
+            disableChatInput("Waiting for handshake...");
+        } else {
+            statusIndicator.className = 'disconnected';
+            statusIndicator.textContent = 'Disconnected';
+            disableChatInput("Waiting for peers...");
+        }
+    }
+
+    function updateSettings(settings) {
+        if (settings.identity_fingerprint) identityFingerprintElem.textContent = settings.identity_fingerprint;
+        if (settings.room_id) {
+            fullRoomId = settings.room_id;
+            const shortId = fullRoomId.length > 16 ? `${fullRoomId.substring(0,8)}...${fullRoomId.substring(fullRoomId.length-8)}` : fullRoomId;
+            roomIdDisplay.textContent = shortId;
+            copyBtn.style.display = 'inline-block';
+        }
+        if (settings.listen_port) listenPortDisplay.textContent = settings.listen_port;
+        if (settings.kem_algo) kemAlgoElem.textContent = settings.kem_algo;
+        if (settings.sig_algo) sigAlgoElem.textContent = settings.sig_algo;
+        if (settings.sym_algo) symAlgoElem.textContent = settings.sym_algo;
+    }
+    
+    function onRoomConnected(roomInfo) {
+        setConnectionStatus(`Successfully connected to room ${roomInfo.id.substring(0,16)}...`, false);
+        showView('chat');
+        document.getElementById('chat-header').textContent = `Chat Room: ${roomInfo.name}`;
+        addSystemMessage("Connection established. Waiting for peer...", 'system');
+    }
+
+    // --- UI Helpers ---
+    function disableChatInput(placeholder) {
+        chatInput.disabled = true;
+        sendBtn.disabled = true;
+        chatInput.placeholder = placeholder;
+    }
+
+    function enableChatInput() {
+        if (chatInput.disabled) {
+            chatInput.disabled = false;
+            sendBtn.disabled = false;
+            chatInput.placeholder = "Type a secure message...";
+            chatInput.focus();
+            addSystemMessage("Handshake complete. You can now chat securely.", "security");
+        }
+    }
+    
+    copyBtn.addEventListener('click', () => {
+        copyToClipboard(fullRoomId);
+        copyBtn.textContent = '✅';
+        setTimeout(() => { copyBtn.textContent = '📋'; }, 2000);
+    });
+
+    // --- Initial setup ---
+    document.addEventListener('DOMContentLoaded', () => {
+        showView('connect');
+        if (window.uiReady) {
+            window.uiReady();
+        }
+    });
+</script>
+</body>
+</html> 

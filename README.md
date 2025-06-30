@@ -3,79 +3,58 @@
 <p align="center">
   <a href="https://go.dev/"><img src="https://img.shields.io/badge/Go-1.24%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License"></a>
-  <img src="https://img.shields.io/badge/Version-1.0.3--e2e-brightgreen?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/Version-1.0.4--e2e-brightgreen?style=for-the-badge" alt="Version">
   <img src="https://img.shields.io/badge/Status-Prototype-orange?style=for-the-badge" alt="Project Status">
+  <a href="http://makeapullrequest.com"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge" alt="PRs Welcome"></a>
 </p>
 
- Post-Quantum End-to-End Encrypted Terminal Chat
- ==============================================
+<p align="center">
+  <img src="Picture.jpg" alt="Entropia Screenshot" width="80%">
+</p>
 
-> **Prototype – not production-ready.  Do **NOT** rely on it for real secrets.**
+## Post-Quantum End-to-End Encrypted Desktop Chat
 
-Entropia is a tiny two-peer chat client that showcases how modern **post-quantum cryptography** can be combined with some neat discovery tricks to create a secure channel over any IP network in only a few hundred lines of Go.
+> **⚠️ Prototype – not for production use.** This software has not been professionally audited. Do NOT rely on it to protect sensitive data.
 
-**Actively developed & headed toward production-readiness — feedback and PRs welcome!**
+**Entropia is a modern, peer-to-peer chat application with a clean graphical user interface, built with post-quantum cryptography to ensure your communications are secure against future threats.**
 
-Instead of trying to replace Signal or Matrix, the project focuses on demonstrating:
+It showcases how to combine NIST-standard quantum-resistant algorithms with peer-to-peer discovery to create a secure, serverless communication channel. The project is actively developed and is headed toward production-readiness. Feedback and contributions are welcome!
 
-* a cryptographically authenticated *identity*,
-* quantum-safe key agreement (Kyber-1024),
-* message authentication (Dilithium-5),
-* periodic key rotation for forward secrecy, and
-* a reliable, multiplexed transport over QUIC.
-
-Curious about the internals?  See **[TECHNICAL_OVERVIEW](https://github.com/reschjonas/entropia/blob/main/TECHNICAL_OVERVIEW.md)**.
+Curious about the internals? See the **[Technical Overview](TECHNICAL_OVERVIEW.md)**.
 
 ---
 
 ## Table of Contents
 
-- [Caveats & Threat Model](#️-caveats--threat-model)
-- [Highlight Features](#highlight-features)
-- [Quick-Start](#quick-start)
-- [Fingerprint Verification](#fingerprint-verification)
+- [Why Entropia?](#why-entropia)
+- [Installation & Usage](#installation--usage)
+- [How It Works](#how-it-works)
+- [Security](#-security)
 - [Logging](#logging)
-- [Roadmap / Ideas](#roadmap--ideas)
-- [Licence](#licence)
+- [Roadmap](#roadmap)
+- [License](#license)
 
 ---
 
-## ⚠️  Caveats & Threat Model
+## Why Entropia?
 
-* **Not audited.**  Only hobbyist eyes have looked at the code so far.
-* **Only two peers.**  There is one *creator* (listener) and one *joiner* (dialer).
-* **IP address exposure.**  Peers connect directly; your public IP is visible to your chat partner.
-* **Trust on first use.**  Always compare the **identity fingerprints** via a trusted channel before chatting.
-
----
-
-## Highlight Features
-
-|  |  |
-| :--- | :--- |
-| 🛡 | **Post-quantum crypto** – Kyber-1024 KEM & Dilithium-5 signatures |
-| 🔄 | **Forward secrecy** – immediate FS via Kyber *ephemeral* keys + rotation every 15 min |
-| 🔑 | **Channel binding** – TLS certificate fingerprint is signed & verified to block MITM |
-| 🧂 | **Random-salt HKDF** – each message has a fresh 32-byte salt and authenticated header |
-| 🔍 | **LAN discovery** – mDNS plus UDP broadcast |
-| 🌐 | **Internet discovery** – Peer discovery via the BitTorrent DHT network |
-| 📡 | **Transport** – Reliable and secure streams via QUIC |
-| 👀 | **TUI** – shows peer list, verification status & fingerprints |
+-   **🛡️ Quantum-Resistant by Default:** Uses CRYSTALS-Kyber for key exchange and CRYSTALS-Dilithium for signatures, both NIST-standard algorithms, to protect you from "harvest now, decrypt later" attacks.
+-   **🖥️ Modern Desktop Experience:** A clean, intuitive, and cross-platform graphical interface built with `webview`. All functionality is integrated into a single, easy-to-use application.
+-   **🌐 Zero-Server Architecture:** True peer-to-peer communication with no central servers to compromise, monitor, or shut down. Your data never touches third-party infrastructure.
+-   **🔍 Smart Peer Discovery:** Automatically finds peers on your local network (mDNS, UDP Broadcast) or across the internet using the BitTorrent DHT. Manual IP connection is also supported.
+-   **🔄 Perfect Forward Secrecy:** Ephemeral key pairs are rotated automatically every 15 minutes, ensuring that a compromised key cannot be used to decrypt past conversations.
+-   **⚡ Lightweight & Fast:** Ships as a single, self-contained Go binary with all assets embedded. It's fast, efficient, and uses a reliable QUIC-based transport layer.
 
 ---
 
-## Installation
+## Installation & Usage
 
 ### Prerequisites
 
 - **Go 1.24+** – install from <https://go.dev/dl/> or your OS package manager.
 - **UDP reachable** network (firewalls/NAT that allow an arbitrary UDP port for QUIC).
 
-### 1. Grab a pre-built binary *(coming soon)*
-
-When GitHub Releases are enabled you will simply download the archive for your OS/CPU, unpack and run `./entropia`.
-
-### 2. Build from source (cross-platform)
+### Build from source (cross-platform)
 
 ```bash
 # Clone & build
@@ -85,82 +64,82 @@ cd entropia
 # Static binary for your OS/arch
 go build -trimpath -ldflags="-s -w" -o entropia .
 
-# Or install into $GOBIN in one line (Go >= 1.20)
+# Or install into $GOBIN in one line
 go install github.com/reschjonas/entropia@latest
 ```
 
-**Verify build** (optional):
+### Running the App
 
-```bash
-entropia --version  # should print the version banner
-```
+1.  **Start the app:**
+    ```bash
+    ./entropia
+    ```
+2.  **Peer 1 (Create Room):**
+    - Click "Create & Start Listening".
+    - The app will generate a Room ID. Go to the "Settings" tab to find and copy it.
+3.  **Peer 2 (Join Room):**
+    - Paste the Room ID into the "Join Existing Room" card.
+    - Click "Join Room". The app will use auto-discovery (DHT, mDNS) to find the creator.
+    - For LAN connections, you can optionally enter the creator's `ip:port`.
 
----
-
-## Quick-Start
-
-Prerequisite: **Go 1.24+**
-
-```bash
-# build
-go build -o entropia .
-
-# Terminal 1 – creator
-./entropia create
-
-# Terminal 2 – joiner (auto-discovery)
-./entropia join <RoomID>
-
-# Terminal 2 – joiner (manual address)
-./entropia join <RoomID> <ip:port>
-```
-
-You can start chatting once *both* sides print:
-
-```
-🟢 Handshake complete — you can start chatting securely.
-```
+You can start chatting once both sides show a **Secure** status.
 
 ---
 
-## Fingerprint Verification
+## How It Works
 
-Every peer prints a fingerprint derived from its long-term public keys.  Compare these fingerprints **out-of-band** (phone, video call, etc.) before trusting any messages.
+Entropia establishes a secure channel in four main steps:
+
+1.  **Discovery:** The application uses mDNS, UDP broadcasts, and the BitTorrent DHT to find a peer's network address.
+2.  **Handshake:** A quantum-safe key exchange is performed using CRYSTALS-Kyber to establish a shared secret.
+3.  **Authentication:** Peer identities are verified using CRYSTALS-Dilithium digital signatures. This step is fortified by out-of-band fingerprint verification.
+4.  **Secure Chat:** All messages are encrypted with XChaCha20-Poly1305, a modern and highly secure symmetric cipher.
+
+For a deep dive into the architecture and cryptographic protocols, read the **[Technical Overview](TECHNICAL_OVERVIEW.md)**.
+
+---
+
+## 🔒 Security
+
+### Threat Model & Caveats
+
+*   **This is a prototype and has not been audited.** Use it for educational purposes only.
+*   **Trust On First Use (TOFU):** You must verify your peer's identity fingerprint out-of-band to prevent man-in-the-middle attacks.
+*   **IP Address Visibility:** As a peer-to-peer application, your IP address will be visible to your chat partner. Anonymity is not a goal of this project.
+
+### Fingerprint Verification
+
+This is the most critical step to ensure you are talking to the right person.
+
+1.  Navigate to the **Settings** tab in the application.
+2.  You will find your **Identity Fingerprint** and a list of verified peer fingerprints.
+3.  Communicate with your peer through a separate, trusted channel (like a video call or in person) and confirm that the fingerprints match on both ends.
 
 ---
 
 ## Logging
 
-Entropia ships with a **silent-by-default** structured logger powered by Go's `slog`.
+Entropia ships with a **silent-by-default** structured logger.
 
-Enable it either via a CLI flag:
-
-```bash
-entropia create --log-level info      # debug | info | warn | error
-```
-
-or an environment variable:
+Enable it with a CLI flag for debugging:
 
 ```bash
-export ENTROPIA_LOG_LEVEL=debug
-entropia join <RoomID>
+entropia --log-level info      # debug | info | warn | error
 ```
-
-Logs are emitted in JSON format on stdout so they can be piped into tools like `jq` for analysis.
 
 ---
 
-## Roadmap / Ideas
+## Roadmap
 
 * NAT traversal via ICE/QUIC
 * Simple group chats (N-peers)
 * File transfer & chat history persistence
-* Actual GUI
+* Formal security audit
 
 PRs and suggestions are welcome!
 
 ---
 
-## Licence
+## License
 
-[MIT](https://github.com/reschjonas/entropia/blob/main/LICENSE)
+[MIT](LICENSE)

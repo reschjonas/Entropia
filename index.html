@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Entropia - Post-Quantum Terminal Chat</title>
-    <meta name="description" content="Secure peer-to-peer messaging with Kyber-1024, Dilithium-5 and QUIC transport. Auto-discovery (mDNS, DHT, STUN) and zero servers for quantum-safe communication.">
+    <title>Entropia - Post-Quantum P2P Chat</title>
+    <meta name="description" content="Secure peer-to-peer messaging with Kyber-1024, Dilithium-5 and QUIC transport. A desktop GUI app for quantum-safe communication.">
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -698,19 +698,18 @@
         <div class="container">
             <div class="hero-content">
                 <h1>Entropia</h1>
-                <p class="hero-subtitle">Post-Quantum End-to-End Encrypted Terminal Chat</p>
+                <p class="hero-subtitle">Post-Quantum End-to-End Encrypted Desktop Chat</p>
                 <div class="hero-badges">
                     <span class="badge badge-warning">⚠️ Prototype</span>
                     <span class="badge">🔐 Kyber-1024</span>
                     <span class="badge">✍️ Dilithium-5</span>
-                    <span class="badge">🔄 Perfect Forward Secrecy</span>
+                    <span class="badge">🖥️ Desktop GUI</span>
                     <span class="badge">🌐 P2P Discovery</span>
                     <span class="badge">⚡ Go & QUIC</span>
                 </div>
                 <p class="hero-description">
                     ⚠️ <strong>Prototype Warning:</strong> Entropia is an experimental project and has not undergone a formal security audit. Use it strictly for learning and experimentation – <em>do not</em> rely on it to protect sensitive or production data.<br><br>
-                    Secure peer-to-peer messaging with quantum-resistant cryptography, auto-discovery, and zero servers. 
-                    The future of private communication, built for the post-quantum era.
+                    Secure peer-to-peer messaging with quantum-resistant cryptography, auto-discovery, and zero servers, now with a clean, modern graphical user interface.
                 </p>
                 <div class="cta-buttons">
                     <a href="#installation" class="btn btn-primary">
@@ -739,24 +738,24 @@
                         <p>Built with NIST-standard Kyber-1024 key encapsulation and Dilithium-5 digital signatures. Your communications stay secure even against quantum computers.</p>
                     </div>
                     <div class="feature-card">
-                        <span class="feature-icon">🔄</span>
-                        <h3>Perfect Forward Secrecy</h3>
-                        <p>Automatic key rotation every 15 minutes ensures that compromising future keys cannot decrypt past conversations.</p>
+                        <span class="feature-icon">🖥️</span>
+                        <h3>Modern Desktop UI</h3>
+                        <p>A clean, intuitive, and cross-platform graphical interface. All functionality is integrated into a single, easy-to-use application window.</p>
                     </div>
                     <div class="feature-card">
                         <span class="feature-icon">🌐</span>
                         <h3>Smart Discovery</h3>
-                        <p>Automatically finds peers via mDNS, UDP broadcast, global DHT, and STUN – no manual IP configuration needed.</p>
+                        <p>Automatically finds peers via mDNS, UDP broadcast, and a global DHT – no manual IP configuration needed for most cases.</p>
                     </div>
                     <div class="feature-card">
                         <span class="feature-icon">⚡</span>
                         <h3>Lightweight & Fast</h3>
-                        <p>Single Go binary (~10MB), <1k LOC core, QUIC-over-UDP transport. Perfect for tunneling through WireGuard or running on constrained systems.</p>
+                        <p>A single Go binary with all assets embedded. Low resource usage and a reliable QUIC-over-UDP transport.</p>
                     </div>
                     <div class="feature-card">
-                        <span class="feature-icon">🖥️</span>
-                        <h3>Terminal UI</h3>
-                        <p>Clean terminal interface showing chat, peer status, and security fingerprints. Works everywhere Go runs - Linux, macOS, Windows.</p>
+                        <span class="feature-icon">🔄</span>
+                        <h3>Perfect Forward Secrecy</h3>
+                        <p>Automatic key rotation every 15 minutes ensures that compromising future keys cannot decrypt past conversations.</p>
                     </div>
                     <div class="feature-card">
                         <span class="feature-icon">🔒</span>
@@ -793,8 +792,8 @@
                         <p><strong>mDNS + DHT + STUN</strong><br>LAN & Internet auto-discovery</p>
                     </div>
                     <div class="tech-item">
-                        <h4>Language</h4>
-                        <p><strong>Go 1.24+</strong><br>Cross-platform, static binary</p>
+                        <h4>GUI</h4>
+                        <p><strong>Go + Webview</strong><br>Cross-platform HTML/CSS/JS UI</p>
                     </div>
                 </div>
             </div>
@@ -803,16 +802,14 @@
         <!-- Enhanced Installation Section -->
         <section id="installation" class="section installation">
             <div class="container">
-                <h2 class="section-title" style="color: white;">Quick Installation</h2>
+                <h2 class="section-title" style="color: white;">Installation & Usage</h2>
                 
                 <div class="step">
                     <h3>1. Prerequisites</h3>
-                    <p>Ensure you have Go 1.24+ installed and UDP network access.</p>
+                    <p>Ensure you have Go 1.24+ installed on your system.</p>
                     <div class="code-block">
                         <pre># Check Go version
-go version
-
-# Should show Go 1.24 or higher</pre>
+go version</pre>
                     </div>
                 </div>
 
@@ -823,31 +820,23 @@ go version
 git clone https://github.com/reschjonas/entropia.git
 cd entropia
 
-# Build static binary
-go build -trimpath -ldflags="-s -w" -o entropia .
-
-# Verify installation
-./entropia --version</pre>
+# Build the binary
+go build -trimpath -ldflags="-s -w" -o entropia .</pre>
                     </div>
                 </div>
 
                 <div class="step">
-                    <h3>3. Quick Start</h3>
+                    <h3>3. How to Use</h3>
+                    <p>Launch the application from your terminal:</p>
                     <div class="code-block">
-                        <pre># Terminal 1 - Create a room (listener)
-./entropia create
-
-# Terminal 2 - Join via auto-discovery
-./entropia join &lt;RoomID&gt;
-
-# Or join with manual IP:port
-./entropia join &lt;RoomID&gt; &lt;ip:port&gt;</pre>
+                        <pre>./entropia</pre>
                     </div>
+                    <p style="margin-top: 1rem;">All actions, like creating and joining rooms, are handled inside the application's graphical interface.</p>
                 </div>
 
                 <div class="security-notice">
                     <h3>🔐 Security Reminder</h3>
-                    <p>Always verify identity fingerprints through a trusted side channel (phone, video call, etc.) before trusting messages. Entropia displays fingerprints every 60 seconds for easy verification.</p>
+                    <p>Always verify identity fingerprints, available in the "Settings" tab, through a trusted side channel (phone, video call, etc.) before trusting messages.</p>
                 </div>
             </div>
         </section>
@@ -887,26 +876,11 @@ go build -trimpath -ldflags="-s -w" -o entropia .
             <div class="container">
                 <h2 class="section-title">Roadmap</h2>
                 <div class="roadmap-container">
-                    <div class="roadmap-item">
-                        <span>🏗️</span>
-                        <span><strong>GitHub Actions</strong> - Build & release pipeline</span>
-                    </div>
-                    <div class="roadmap-item">
-                        <span>🌐</span>
-                        <span><strong>NAT Traversal</strong> - ICE/QUIC for better connectivity</span>
-                    </div>
-                    <div class="roadmap-item">
-                        <span>👥</span>
-                        <span><strong>Group Chat</strong> - N-way secure messaging</span>
-                    </div>
-                    <div class="roadmap-item">
-                        <span>📁</span>
-                        <span><strong>File Transfer</strong> - Secure file sharing capabilities</span>
-                    </div>
-                    <div class="roadmap-item">
-                        <span>🖥️</span>
-                        <span><strong>Desktop GUI</strong> - Modern graphical interface</span>
-                    </div>
+                    <div class="tech-item"><span><strong>GitHub Actions</strong> - Build & release pipeline</span></div>
+                    <div class="tech-item"><span><strong>NAT Traversal</strong> - ICE/QUIC for better connectivity</span></div>
+                    <div class="tech-item"><span><strong>Group Chat</strong> - N-way secure messaging</span></div>
+                    <div class="tech-item"><span><strong>File Transfer</strong> - Secure file sharing capabilities</span></div>
+                    <div class="tech-item"><span><strong>Formal Audit</strong> - Professional security review</span></div>
                 </div>
             </div>
         </section>
